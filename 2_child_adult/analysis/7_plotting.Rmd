@@ -1,0 +1,414 @@
+---
+title: "7_plotting"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load packages
+```{r eval=FALSE}
+
+library(devtools)
+
+devtools::install_github("crsh/papaja")
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(janitor)
+library(papaja)
+library(beepr)
+```
+
+
+# read bin screened data
+
+```{r}
+plot_data <- read_csv(here::here("data", "adult_child_combined", "zdiff_binscreened.csv"))
+
+```
+
+# fix bin values 
+
+- drop diff bit from values in bin column, keep the last 4 char from diff_bin1
+```{r}
+plot_data$bin <- str_sub(plot_data$bin, -4)
+```
+
+# add emotion_type variable
+
+```{r}
+plot_data <- plot_data %>%
+  mutate(emo_type = case_when(emotion == 121 ~ "child_happy", 
+                              emotion == 323 ~ "child_angry", 
+                              emotion == 424 ~ "child_fear", 
+                              emotion == 525 ~ "child_sad", 
+                              emotion == 131 ~ "adult_happy", 
+                              emotion == 232 ~ "adult_angry", 
+                              emotion == 434 ~ "adult_fear", 
+                              emotion == 535 ~ "adult_sad"))
+```
+
+# fix data type
+```{r}
+plot_data$emo_type <- as.factor(plot_data$emo_type)
+
+plot_data$trial <- as.factor(plot_data$trial)
+
+plot_data$bin <- as.factor(plot_data$bin)
+
+plot_data$muscle <- as.factor(plot_data$muscle)
+
+glimpse(plot_data)
+
+levels(plot_data$bin)
+```
+
+# BROW-ADULT
+
+## plot brow for adult face data
+
+### all emotions
+```{r}
+plot_data %>%
+  filter(model == "adult", muscle == "brow") %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in brow muscle activity from baseline", subtitle = "response to emotion displayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+```
+
+### just happy and angry
+```{r}
+
+plot_data %>%
+  filter(model == "adult", muscle == "brow") %>%
+  filter(emo_type %in% c("adult_happy", "adult_angry")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in brow muscle activity from baseline", subtitle = "response to emotion displayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+```
+
+### just sad fear
+```{r}
+plot_data %>%
+  filter(model == "adult", muscle == "brow") %>%
+  filter(emo_type %in% c("adult_sad", "adult_fear")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in brow muscle activity from baseline", subtitle = "response to emotion displayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+
+```
+
+```{r}
+beep(1)
+```
+
+# BROW-CHILD
+
+##plot brow for child face data
+
+#### all emotions
+```{r}
+plot_data %>%
+  filter(model == "child", muscle == "brow") %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in brow muscle activity from baseline", subtitle = "response to emotion displayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+```
+#### just happy and angry
+```{r}
+plot_data %>%
+  filter(model == "child", muscle == "brow") %>%
+  filter(emo_type %in% c("child_happy", "child_angry")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in brow muscle activity from baseline", subtitle = "response to emotion displayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+```
+
+#### just sad and fear
+
+```{r}
+
+plot_data %>%
+  filter(model == "child", muscle == "brow") %>%
+  filter(emo_type %in% c("child_sad", "child_fear")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in brow muscle activity from baseline", subtitle = "response to emotion displayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+```
+
+```{r}
+beep(2)
+```
+
+# CHEEK-ADULT
+
+## plot cheek for adult face data 
+
+#### all emotions
+```{r}
+plot_data %>%
+  filter(model == "adult", muscle == "cheek") %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in cheek muscle activity from baseline", subtitle = "response to emotion displayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+```
+#### just happy angry
+```{r}
+plot_data %>%
+  filter(model == "adult", muscle == "cheek") %>%
+  filter(emo_type %in% c("adult_happy", "adult_angry")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in cheek muscle activity from baseline", subtitle = "response to emotion displayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+```
+
+#### just sad fear
+
+```{r}
+plot_data %>%
+  filter(model == "adult", muscle == "cheek") %>%
+  filter(emo_type %in% c("adult_sad", "adult_fear")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in cheek muscle activity from baseline", subtitle = "response to emotion displayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+
+
+```
+```{r}
+beep(3)
+```
+
+
+# CHEEK-CHILD
+ 
+## plot cheek for child face data 
+
+#### all emotions
+```{r}
+plot_data %>%
+  filter(model == "child", muscle == "cheek") %>%
+  group_by(emotion, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emotion, colour = emotion)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in cheek muscle activity from baseline", subtitle = "response to emotion displayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+```
+
+#### just happy angry
+```{r}
+plot_data %>%
+  filter(model == "child", muscle == "cheek") %>%
+  filter(emo_type %in% c("child_happy", "child_angry")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in cheek muscle activity from baseline", subtitle = "response to emotion displayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+```
+
+#### just sad fear
+```{r}
+plot_data %>%
+  filter(model == "child", muscle == "cheek") %>%
+  filter(emo_type %in% c("child_sad", "child_fear")) %>%
+  group_by(emo_type, bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean difference in cheek muscle activity from baseline", subtitle = "response to emotion displayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+
+```
+
+```{r}
+beep(4)
+```
+
+
+# ADULT-CHEEK-BROW
+
+## plot brow and cheek together for adult
+
+#### all emotion
+```{r}
+plot_data %>%
+  filter(model == "adult") %>%
+  group_by(emo_type, bin, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "response to fear and sad diplayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+```
+### just happy angry
+```{r}
+plot_data %>%
+  filter(model == "adult") %>%
+  filter(emo_type %in% c("adult_happy", "adult_angry")) %>%
+  group_by(emo_type, bin, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "response to happy and angry diplayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+```
+
+### just fear and sad
+```{r}
+plot_data %>%
+  filter(model == "adult") %>%
+  filter(emo_type %in% c("adult_fear", "adult_sad")) %>%
+  group_by(emo_type, bin, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "response to fear and sad diplayed by adults") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+
+```
+
+```{r}
+beep(5)
+```
+
+# CHILD-CHEEK-BROW
+
+## plot brow and cheek together for child
+
+### all emotion
+
+```{r}
+plot_data %>%
+  filter(model == "child") %>%
+  group_by(emo_type, bin, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "response to sad and fear diplayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+```
+
+### just happy angry
+```{r}
+plot_data %>%
+  filter(model == "child") %>%
+  filter(emo_type %in% c("child_happy", "child_angry")) %>%
+  group_by(emo_type, bin, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "response to happy and angry diplayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+```
+
+### just sad fear
+
+```{r}
+plot_data %>%
+  filter(model == "child") %>%
+  filter(emo_type %in% c("child_sad", "child_fear")) %>%
+  group_by(emo_type, bin, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = emo_type, colour = emo_type)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "response to sad and fear diplayed by children") +
+  scale_y_continuous(limits = c(-0.15, 0.25))
+
+
+```
+
+```{r}
+plot_data <- plot_data %>%
+  write_csv(here::here("data", "adult_child_combined", "zdiff_binscreened_plot.csv"))
+```
+
+```{r}
+beep(6)
+```
+

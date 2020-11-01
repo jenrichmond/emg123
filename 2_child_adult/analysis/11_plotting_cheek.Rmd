@@ -1,0 +1,598 @@
+---
+title: "11_plotting_cheek"
+output: word_document
+---
+
+# load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(ggplot2) 
+library(ggeasy)
+library(dplyr)
+library(RColorBrewer)
+library(papaja)
+library(lubridate)
+library(harrypotter)
+library(wesanderson)
+```
+
+# read in data 
+```{r}
+df <- read_csv(here::here("data", "adult_child_combined", "zdiff_binscreened2.csv"))
+```
+
+# fix data types
+
+```{r}
+df$emotion <- as.factor(df$emotion)
+
+levels(df$emotion)
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+```
+
+
+#CHILD CHEEK
+
+```{r}
+plot_child_cheek <- df %>%
+   filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(emotion %in% c("121", "323", "424", "525")) %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(plot_child_cheek)
+```
+
+#make sure it is only the relevant emotions
+```{r}
+
+plot_child_cheek$emo <- fct_relevel(plot_child_cheek$emo, c("Happy", "Angry", "Fear", "Sad"))
+
+levels(plot_child_cheek$emo)
+
+
+plot_child_cheek$bin <- fct_relevel(plot_child_cheek$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(plot_child_cheek$bin)
+```
+
+#create a new bin column and rename bins
+```{r}
+
+plot_child_cheek$time_bin <- plot_child_cheek$bin
+
+
+plot_child_cheek <- plot_child_cheek %>%
+  mutate(time_bin = recode(bin, "diff_bin1" = "100",
+                                "diff_bin2" = "200", 
+                                "diff_bin3" = "300", 
+                                "diff_bin4" = "400", 
+                              "diff_bin5" = "500", 
+                              "diff_bin6" = "600", 
+                              "diff_bin7" = "700", 
+                              "diff_bin8" = "800",
+                              "diff_bin9" = "900",
+                              "diff_bin10" = "1000", .default = "NA"))
+                           
+```
+
+
+
+#plot cheek activity 
+
+emotion x bin - all emotions 
+
+```{r}
+plot_data <- plot_child_cheek %>%
+  filter(model == "child") %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(emotion %in% c("121", "323", "424", "525")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  theme_apa() +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_y_continuous(limits = c(-0.2, 0.2)) +
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "D") +
+  easy_plot_subtitle_size(size = 18)
+
+
+
+print(plot_data)
+
+ggsave("child_cheek_D.png")
+
+```
+
+#happy/fear
+
+emotion x bin 
+```{r}
+plot_data <- plot_child_cheek %>%
+  filter(model == "child") %>%
+   filter(emo %in% c("Happy", "Fear")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  theme_apa() +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_y_continuous(limits = c(-0.2, 0.2)) +
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "B") +
+  easy_plot_title_size(size = 20) +
+  easy_plot_subtitle_size(size = 18)
+
+
+
+print(plot_data)
+
+ggsave("child_cheek_B.png")
+
+```
+
+
+
+#happy/angry
+
+emotion x bin 
+```{r}
+plot_data <- plot_child_cheek %>%
+  filter(model == "child") %>%
+   filter(emo %in% c("Happy", "Angry")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  theme_apa() +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  scale_y_continuous(limits = c(-0.2, 0.2)) +
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "A") +
+  labs(title = "Child Cheek") +
+  easy_plot_title_size(size = 20) +
+  easy_plot_subtitle_size(size = 18)
+
+
+
+print(plot_data)
+
+ggsave("child_cheek_A.png")
+
+```
+
+
+#happy/sad
+
+emotion x bin 
+```{r}
+plot_data <- plot_child_cheek %>%
+  filter(model == "child") %>%
+   filter(emo %in% c("Happy", "Sad")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  theme_apa() +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  scale_y_continuous(limits = c(-0.2, 0.2)) +
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "C") +
+  easy_plot_title_size(size = 20) +
+  easy_plot_subtitle_size(size = 18)
+
+
+
+print(plot_data)
+
+ggsave("child_cheek_C.png")
+
+```
+
+
+#bar graph 
+
+#read in data for child faces 
+
+```{r}
+plot_child <- df %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, emo, muscle, trial, bin)
+
+plot_child$emo <- fct_relevel(plot_child$emo, c("Happy", "Angry", "Fear", "Sad"))
+```
+
+
+# bar graph - all emotions for child face and cheek 
+```{r}
+plot_data <- plot_child %>%
+  filter(model == "child") %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = emo, y = meanZ, fill = emo)) +
+  geom_col(position = "dodge") +
+  theme_apa(base_size = 14) +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .5, width = .4, position = position_dodge(.9)) +
+  theme_classic() +
+  geom_hline(yintercept = 0) +
+  scale_fill_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  scale_y_continuous(limits = c(-0.1, 0.1)) +
+  labs(y = "Mean z-score difference (RMS) from baseline
+(averaged across bins)", x = "Emotion") +
+    easy_remove_legend() +
+   easy_remove_legend() +
+   easy_x_axis_title_size(size = 14) +
+ easy_y_axis_title_size(size = 14) +
+  easy_text_size(size = 14) +
+  labs(title = "Child Cheek") +
+  easy_plot_title_size(size = 14)
+
+print(plot_data)
+
+ggsave("child_cheek_bar.png")
+```
+
+#bar graph for child face and brow muscle 
+```{r}
+plot_data <- plot_child %>%
+  filter(model == "child") %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(muscle == "brow") %>%
+  group_by(emo, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = emo, y = meanZ, fill = emo)) +
+  geom_col(position = "dodge") +
+  theme_apa(base_size = 14) +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .5, width = .4, position = position_dodge(.9)) +
+  theme_classic() +
+  geom_hline(yintercept = 0) +
+  scale_fill_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  scale_y_continuous(limits = c(-0.1, 0.1)) +
+  labs(y = "Mean z-score difference (RMS) from baseline
+(averaged across bins)", x = "Emotion") +
+    easy_remove_legend() +
+   easy_remove_legend() +
+   easy_x_axis_title_size(size = 14) +
+ easy_y_axis_title_size(size = 14) +
+  easy_text_size(size = 14) +
+  labs(title = "Child Brow") +
+  easy_plot_title_size(size = 14)
+
+print(plot_data)
+
+ggsave("child_brow_bar.png")
+```
+
+
+#ADULT CHEEK 
+
+```{r}
+plot_adult_cheek <- df %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(plot_adult_cheek)
+```
+
+#make sure it is only the relevant emotions
+```{r}
+
+plot_adult_cheek$emo <- fct_relevel(plot_adult_cheek$emo, c("Happy", "Angry", "Fear", "Sad"))
+
+levels(plot_adult_cheek$emo)
+
+
+plot_adult_cheek$bin <- fct_relevel(plot_adult_cheek$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(plot_adult_cheek$bin)
+```
+
+
+#create new column and rename bins
+```{r}
+plot_adult_cheek$time_bin <- plot_adult_cheek$bin
+
+
+plot_adult_cheek <- plot_adult_cheek %>%
+  mutate(time_bin = recode(bin, "diff_bin1" = "100",
+                                "diff_bin2" = "200", 
+                                "diff_bin3" = "300", 
+                                "diff_bin4" = "400", 
+                              "diff_bin5" = "500", 
+                              "diff_bin6" = "600", 
+                              "diff_bin7" = "700", 
+                              "diff_bin8" = "800",
+                              "diff_bin9" = "900",
+                              "diff_bin10" = "1000", .default = "NA"))
+```
+
+
+#plot adult cheek 
+
+emotion x bin - all emotions 
+
+```{r}
+plot_data <- plot_adult_cheek %>%
+  filter(model == "adult") %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  theme_apa() +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_y_continuous(limits = c(-0.15, 0.3)) + 
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "D") +
+  easy_plot_title_size(size = 20) +
+  easy_plot_subtitle_size(size = 18)
+
+print(plot_data)
+
+ggsave("adult_cheek_D.png")
+```
+
+#happy/angry 
+
+emotion x bin
+```{r}
+plot_data <- plot_adult_cheek %>%
+  filter(model == "adult") %>%
+  filter(emo %in% c("Happy", "Angry")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  theme_apa() +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_y_continuous(limits = c(-0.15, 0.3)) + 
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "A") +
+  labs(title = "Adult Cheek") +
+  easy_plot_title_size(size = 20) +
+  easy_plot_subtitle_size(size = 18)
+
+print(plot_data)
+
+ggsave("adult_cheek_A.png")
+
+```
+
+# happy/fear 
+
+emotion x bin
+```{r}
+plot_data <- plot_adult_cheek %>%
+  filter(model == "adult") %>%
+  filter(emo %in% c("Happy", "Fear")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  theme_apa() +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_y_continuous(limits = c(-0.15, 0.3)) + 
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "B") +
+  easy_plot_title_size(size = 20) +
+  easy_plot_subtitle_size(size = 18)
+
+print(plot_data)
+
+ggsave("adult_cheek_B.png")
+
+```
+
+#happy/sad
+
+emotion x bin
+```{r}
+plot_data <- plot_adult_cheek %>%
+  filter(model == "adult") %>%
+  filter(emo %in% c("Happy", "Sad")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, time_bin) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = time_bin, y = meanZ, group = emo, colour = emo)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4) +
+  theme_classic() +
+  scale_color_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  theme_apa() +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey") +
+  scale_y_continuous(limits = c(-0.15, 0.3)) + 
+  labs(y = "Mean difference in cheek activity 
+(baseline corrected z-score)", x = "Time post-stimulus presentation onset (ms)") +
+ easy_x_axis_title_size(size = 16) +
+ easy_y_axis_title_size(size = 16) +
+  easy_text_size(size = 14) +
+  easy_plot_legend_title_size(size = 20) +
+  easy_plot_legend_size(size = 20) +
+  easy_add_legend_title("Emotion") +
+  labs(subtitle = "C") +
+  easy_plot_title_size(size = 20) +
+  easy_plot_subtitle_size(size = 18)
+
+print(plot_data)
+
+ggsave("adult_cheek_C.png")
+
+```
+
+# bar graph for adult faces and cheek muscle 
+
+```{r}
+plot_adult <- df %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, emo, muscle, trial, bin)
+
+plot_adult$emo <- fct_relevel(plot_adult$emo, c("Happy", "Angry", "Fear", "Sad"))
+
+glimpse(plot_adult)
+```
+
+
+# bar graph adult faces - cheek muscle activity 
+
+```{r}
+plot_data <- plot_adult %>%
+  filter(model == "adult") %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(muscle == "cheek") %>%
+  group_by(emo, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = emo, y = meanZ, fill = emo)) +
+  geom_col(position = "dodge") +
+  theme_apa(base_size = 14) +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .5, width = .4, position = position_dodge(.9)) +
+  theme_classic() +
+  geom_hline(yintercept = 0) +
+  scale_fill_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  scale_y_continuous(limits = c(-0.1, 0.1)) +
+  labs(y = "Mean z-score difference (RMS) from baseline
+(averaged across bins)", x = "Emotion") +
+    easy_remove_legend() +
+   easy_x_axis_title_size(size = 14) +
+ easy_y_axis_title_size(size = 14) +
+  easy_text_size(size = 14) +
+  labs(title = "Adult Cheek") +
+  easy_plot_title_size(size = 14)
+
+print(plot_data)
+
+ggsave("adult_plot.png")
+```
+
+#bar graph adult faces - brow muscle activity 
+```{r}
+plot_data <- plot_adult %>%
+  filter(model == "adult") %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(muscle == "brow") %>%
+  group_by(emo, muscle) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = emo, y = meanZ, fill = emo)) +
+  geom_col(position = "dodge") +
+  theme_apa(base_size = 14) +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .5, width = .4, position = position_dodge(.9)) +
+  theme_classic() +
+  geom_hline(yintercept = 0) +
+  scale_fill_hp(option = "ravenclaw", alpha = 1, begin = 0, end = 1, direction = 1, discrete = TRUE, house = NULL) +
+  scale_y_continuous(limits = c(-0.1, 0.1)) +
+  labs(y = "Mean z-score difference (RMS) from baseline
+(averaged across bins)", x = "Emotion") +
+    easy_remove_legend() +
+   easy_x_axis_title_size(size = 14) +
+ easy_y_axis_title_size(size = 14) +
+  easy_text_size(size = 14) +
+  labs(title = "Adult Brow") +
+  easy_plot_title_size(size = 14)
+
+print(plot_data)
+
+ggsave("adult_brow_plot.png")
+```
+
+
+

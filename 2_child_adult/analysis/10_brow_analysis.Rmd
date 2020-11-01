@@ -1,0 +1,374 @@
+---
+title: "10_brow_analysis"
+output: html_document
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+---
+
+# load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+
+knitr::opts_chunk$set(autodep = TRUE)
+```
+
+# read in data 
+```{r}
+df <- read_csv(here::here("data", "adult_child_combined", "zdiff_binscreened2.csv"))
+```
+
+
+# fix data types
+```{r}
+df$emotion <- as.factor(df$emotion)
+
+levels(df$emotion)
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+```
+
+
+
+# BROW  child
+
+### Make brow child df 
+
+just happy/angry child face for cheek
+
+```{r}
+child_brow <- df %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(emotion %in% c("121", "323", "424", "525")) %>%
+  filter(muscle == "brow") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(child_brow)
+
+```
+
+
+
+### Fix factor levels
+
+```{r}
+
+child_brow$emo <- fct_relevel(child_brow$emo, c("Happy", "Angry", "Fear", "Sad"))
+
+levels(child_brow$emo)
+
+child_brow$emotion <- fct_relevel(child_brow$emotion, c("121", "323", "424", "525"))
+
+child_brow$bin <- fct_relevel(child_brow$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(child_brow$bin)
+```
+
+
+## Fit model 1 
+
+This is the model structure we will use to check assumptions. Include all predicted fixed effects and simplest random effect structure (just intercepts for participant). In all likelihood this model with zscores as DV will not meet assumptions and we will need to transform data. 
+
+```{r cache = TRUE}
+child_brow_lm <- lmer(zdiff ~ emo + bin + emo*bin + (1|pp_no), data = child_brow, REML = FALSE)
+
+```
+
+
+### check assumptions
+```{r}
+plot(child_brow_lm)
+
+qqnorm(resid(child_brow_lm))
+qqline(resid(child_brow_lm))
+```
+
+As suscepted, need to transform to correct normality. 
+
+### compute log_modulus
+```{r}
+child_brow <- child_brow %>%
+  mutate(log_modulus_new = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+### try fit model again
+```{r cache = TRUE}
+child_brow_lm_1 <- lmer(log_modulus_new ~ emo + bin + emo*bin + (1|pp_no), data = child_brow, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_brow_lm_1)
+
+qqnorm(resid(child_brow_lm_1))
+qqline(resid(child_brow_lm_1))
+```
+
+### get anova
+
+```{r}
+anova(child_brow_lm_1)
+```
+
+# use summary to get coefficients 
+```{r}
+summary(child_brow_lm_1)
+```
+
+#get tidy df
+```{r}
+tidy_child_brow1 <- tidy(child_brow_lm_1)
+```
+
+## fit model 2 (slopes for emotion)
+```{r cache = TRUE}
+child_brow_lm_2 <- lmer(log_modulus_new ~ emo + bin + emo*bin + (1 + emo|pp_no), data = child_brow, REML = FALSE)
+```
+
+### get anova
+```{r}
+anova(child_brow_lm_2)
+```
+
+# summary 
+```{r}
+summary(child_brow_lm_2)
+```
+
+#tidy 
+```{r}
+tidy_child_brow2 <- tidy(child_brow_lm_2)
+```
+
+### check model fit
+
+```{r}
+AIC(child_brow_lm_1)
+AIC(child_brow_lm_2)
+```
+
+# is model 2 better than model 1? 
+```{r}
+anova(child_brow_lm_1, child_brow_lm_2)
+```
+
+model take home - the model with the addition of a slope for emotion provides a better fit for the data than the model without 
+
+## fit model 3 (slope for emotion and bin) - failed to converge
+
+```{r eval = FALSE}
+child_brow_lm_3 <- lmer(log_modulus_new ~ emo + bin + emo*bin + (1 + emo + bin|pp_no), data = child_brow, REML = FALSE)
+```
+
+# Child model take home
+model 3 failed to converge, model 2 provides the best fit 
+
+
+# make output table
+```{r}
+
+child_really_nice_table <- dust(child_brow_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+child_really_nice_table
+
+```
+
+
+# BROWadult
+
+### Make brow adult df 
+```{r}
+adult_brow <- df %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(emotion %in% c("131", "232", "434", "535")) %>%
+  filter(muscle == "brow") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(adult_brow)
+
+levels(adult_brow$emotion)
+
+```
+
+
+### Fix factor levels
+```{r}
+
+adult_brow$emo <- fct_relevel(adult_brow$emo, c("happy", "angry", "fear", "sad"))
+
+adult_brow$emotion <- fct_relevel(adult_brow$emotion, c("131", "232", "434", "535"))
+
+levels(adult_brow$emo)
+
+adult_brow$bin <- fct_relevel(adult_brow$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(adult_brow$bin)
+
+levels(adult_brow$emotion)
+```
+
+
+## Compute log modulus 
+```{r cache = TRUE}
+adult_brow <- adult_brow %>%
+  mutate(log_modulus_new = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+
+### try fit model 1 
+```{r}
+adult_brow_lm_1 <- lmer(log_modulus_new ~ emo + bin + emo*bin + (1|pp_no), data = adult_brow, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(adult_brow_lm_1)
+
+qqnorm(resid(adult_brow_lm_1))
+qqline(resid(adult_brow_lm_1))
+```
+
+
+### get anova 
+
+```{r}
+anova(adult_brow_lm_1)
+```
+
+# get summary 
+```{r}
+summary(adult_brow_lm_1)
+```
+
+# get tidy 
+```{r}
+tidy_adult_brow1 <- tidy(adult_brow_lm_1)
+```
+
+## fit model 2 (slope for emotion)
+```{r cache = TRUE}
+adult_brow_lm_2 <- lmer(log_modulus_new ~ emo + bin + emo*bin + (1 + emo|pp_no), data = adult_brow, REML = FALSE)
+```
+
+### get anova 
+```{r}
+anova(adult_brow_lm_2)
+```
+
+# get summary 
+```{r}
+summary(adult_brow_lm_2)
+```
+
+# get tidy
+```{r}
+tidy_adult_brow2 <- tidy(adult_brow_lm_2)
+```
+
+
+### check model fit
+```{r}
+AIC(adult_brow_lm_1)
+AIC(adult_brow_lm_2)
+```
+
+#is model 2 a better fit than model 1?
+```{r}
+anova(adult_brow_lm_1, adult_brow_lm_2)
+```
+
+model take home - model with slope for emotion provides a better fit for the data than model without slope for emotion 
+
+## fit model 3 (slope for emo and bin) - failed to converge
+```{r eval = FALSE}
+adult_brow_lm_3 <- lmer(log_modulus_new ~ emo + bin + emo*bin + (1 + emo + bin|pp_no), data = adult_brow, REML = FALSE)
+
+```
+
+# Adult model take home 
+
+model 2 with just slope for emotion provides the best fit for the data
+
+
+# get confidence intervals 
+```{r cache = TRUE}
+confint.merMod(adult_brow_lm_2, level = 0.95)
+```
+
+# make output table
+```{r}
+
+adult_really_nice_table <- dust(adult_brow_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+adult_really_nice_table
+```
+
+
+```{r}
+beepr::beep()
+```
+
+
+brow analyses take home - it appears as if there is no emotion x bin interaction for either child or adult faces, suggesting that pre-schoolers did not mimic angry, fear or sad faces displayed by either adults or children. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

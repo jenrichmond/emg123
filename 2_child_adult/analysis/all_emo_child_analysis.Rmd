@@ -1,0 +1,744 @@
+---
+title: "all_emotion_analysis"
+output: html_document
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+---
+
+#load packages
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+library(ggplot2)
+```
+
+
+#read in data frame
+```{r}
+df <- read_csv(here::here("data", "adult_child_combined", "zdiff_binscreened2.csv"))
+
+glimpse(df)
+
+df$emotion <- as.factor(df$emotion)
+
+levels(df$emotion)
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+
+```
+
+
+```{r}
+child_happy <- df %>%
+  filter(emo == "happy") %>%
+  filter(model == "child") %>%
+  filter(emotion == "121") %>%
+  arrange(pp_no, muscle, emo, emotion, trial, bin)
+
+glimpse(child_happy)
+
+```
+
+
+```{r}
+
+child_happy$emo <- fct_relevel(child_happy$emo, "happy")
+
+levels(child_happy$emo)
+
+child_happy$bin <- fct_relevel(child_happy$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(child_happy$bin)
+```
+
+## Model 1 (intercepts only)
+
+
+This model predicts Zdiff from fixed effects of emotion (happy, angry), bin (1-10), and emotion x bin interaction. It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). No slopes are included. 
+
+```{r}
+child_happy_lm <- lmer(zdiff ~ muscle + bin + muscle*bin + (1|pp_no) + (1|trial), data = child_happy, REML = FALSE)
+```
+
+### check assumptions - plot residuals and qqplot (check normality)
+```{r}
+plot(child_happy_lm)
+
+qqnorm(resid(child_happy_lm))
+qqline(resid(child_happy_lm))
+```
+As suscepted, need to transform to correct normality. 
+
+### compute log_modulus
+
+log modulus - transforms the absolute value (without the -) and then puts the sign back on. Make a new column for log modulus.
+
+```{r}
+child_happy <- child_happy %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+### fit model again
+
+```{r}
+child_happy_lm_new <- lmer(log_modulus ~ muscle + bin + muscle*bin + (1|pp_no), data = child_happy, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_happy_lm_new)
+
+qqnorm(resid(child_happy_lm_new))
+qqline(resid(child_happy_lm_new))
+```
+
+#this one looks much worse... 
+
+### compute new log mod
+
+```{r}
+child_happy <- child_happy %>%
+  mutate(log_modulus_new = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+### try fit model again
+
+```{r}
+child_happy_lm_1 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1|pp_no), data = child_happy, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_happy_lm_1)
+
+qqnorm(resid(child_happy_lm_1))
+qqline(resid(child_happy_lm_1))
+```
+
+
+#this one looks better but not great. 
+
+#use ANOVA to estimate effects
+```{r}
+aov_output <- anova(child_happy_lm_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+```
+
+#use summary to get coefficients
+```{r}
+summary(child_happy_lm_1)
+```
+
+```{r}
+tidy_child_happy1 <- tidy(child_happy_lm_1)
+```
+
+
+# fit model 2 (slope for emotion)
+```{r}
+child_happy_lm_2 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle|pp_no), data = child_happy, REML = FALSE)
+```
+
+
+#get summary, anova and tidy 
+
+```{r}
+summary(child_happy_lm_2)
+```
+
+
+```{r}
+anova(child_happy_lm_2)
+```
+
+
+```{r}
+tidy_child_happy2 <- tidy(child_happy_lm_2)
+```
+
+#check fit
+```{r}
+AIC(child_happy_lm_1)
+AIC(child_happy_lm_2)
+```
+
+```{r}
+anova(child_happy_lm_1, child_happy_lm_2)
+```
+
+#model take home - model 2 with slope for emotion provides a better fit for the data 
+
+
+
+#fit model 3 (slope for emo and bin) - model failed to converge 
+```{r}
+child_happy_lm_3 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle + bin|pp_no), data = child_happy, REML = FALSE)
+```
+
+
+#take home - model 2 provides the best fit for the data 
+
+
+#get confidence intervals 
+```{r}
+confint.merMod(child_happy_lm_2, level = 0.95)
+```
+```{r}
+
+really_nice_table <- dust(child_happy_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+
+
+#child sad
+
+
+```{r}
+child_sad <- df %>%
+  filter(emo == "sad") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, muscle, emo, emotion, trial, bin)
+
+glimpse(child_happy)
+
+```
+
+
+```{r}
+
+child_sad$emo <- fct_relevel(child_sad$emo, "sad")
+
+levels(child_sad$emo)
+
+child_happy$bin <- fct_relevel(child_happy$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(child_sad$bin)
+```
+
+## Model 1 (intercepts only)
+
+
+This model predicts Zdiff from fixed effects of emotion (happy, angry), bin (1-10), and emotion x bin interaction. It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). No slopes are included. 
+
+```{r}
+child_sad_lm <- lmer(zdiff ~ muscle + bin + muscle*bin + (1|pp_no) + (1|trial), data = child_sad, REML = FALSE)
+```
+
+### check assumptions - plot residuals and qqplot (check normality)
+```{r}
+plot(child_sad_lm)
+
+qqnorm(resid(child_sad_lm))
+qqline(resid(child_sad_lm))
+```
+As suscepted, need to transform to correct normality. 
+
+### compute log_modulus
+
+log modulus - transforms the absolute value (without the -) and then puts the sign back on. Make a new column for log modulus.
+
+```{r}
+child_sad <- child_sad %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+### fit model again
+
+```{r}
+child_sad_lm_new <- lmer(log_modulus ~ muscle + bin + muscle*bin + (1|pp_no), data = child_sad, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_sad_lm_new)
+
+qqnorm(resid(child_sad_lm_new))
+qqline(resid(child_sad_lm_new))
+```
+
+#this one looks much worse... 
+
+### compute new log mod
+
+```{r}
+child_sad <- child_sad %>%
+  mutate(log_modulus_new = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+### try fit model again
+
+```{r}
+child_sad_lm_1 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1|pp_no), data = child_sad, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_sad_lm_1)
+
+qqnorm(resid(child_sad_lm_1))
+qqline(resid(child_sad_lm_1))
+```
+
+
+#this one looks better but not great. 
+
+#use ANOVA to estimate effects
+```{r}
+aov_output <- anova(child_sad_lm_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+```
+
+#use summary to get coefficients
+```{r}
+summary(child_sad_lm_1)
+```
+
+```{r}
+tidy_child_sad1 <- tidy(child_sad_lm_1)
+```
+
+
+# fit model 2 (slope for emotion)
+```{r}
+child_sad_lm_2 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle|pp_no), data = child_sad, REML = FALSE)
+```
+
+
+#get summary, anova and tidy 
+
+```{r}
+summary(child_sad_lm_2)
+```
+
+
+```{r}
+anova(child_sad_lm_2)
+```
+
+
+```{r}
+tidy_child_sad2 <- tidy(child_sad_lm_2)
+```
+
+#check fit
+```{r}
+AIC(child_sad_lm_1)
+AIC(child_sad_lm_2)
+```
+
+```{r}
+anova(child_sad_lm_1, child_sad_lm_2)
+```
+
+#model take home - model 2 with slope for emotion provides a better fit for the data 
+
+
+
+#fit model 3 (slope for emo and bin) - model failed to converge 
+```{r}
+child_sad_lm_3 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle + bin|pp_no), data = child_sad, REML = FALSE)
+```
+
+
+#take home - model 2 provides the best fit for the data 
+
+
+#get confidence intervals 
+```{r}
+confint.merMod(child_sad_lm_2, level = 0.95)
+```
+
+
+```{r}
+
+really_nice_table <- dust(child_sad_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+
+#child angry 
+
+```{r}
+child_angry <- df %>%
+  filter(emo == "angry") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, muscle, emo, emotion, trial, bin)
+
+glimpse(child_angry)
+
+```
+
+
+```{r}
+
+child_angry$emo <- fct_relevel(child_angry$emo, "angry")
+
+levels(child_angry$emo)
+
+child_angry$bin <- fct_relevel(child_angry$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(child_angry$bin)
+```
+
+## Model 1 (intercepts only)
+
+
+This model predicts Zdiff from fixed effects of emotion (happy, angry), bin (1-10), and emotion x bin interaction. It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). No slopes are included. 
+
+```{r}
+child_angry_lm <- lmer(zdiff ~ muscle + bin + muscle*bin + (1|pp_no) + (1|trial), data = child_angry, REML = FALSE)
+```
+
+### check assumptions - plot residuals and qqplot (check normality)
+```{r}
+plot(child_angry_lm)
+
+qqnorm(resid(child_angry_lm))
+qqline(resid(child_angry_lm))
+```
+As suscepted, need to transform to correct normality. 
+
+### compute log_modulus
+
+log modulus - transforms the absolute value (without the -) and then puts the sign back on. Make a new column for log modulus.
+
+```{r}
+child_angry <- child_angry %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+### fit model again
+
+```{r}
+child_angry_lm_new <- lmer(log_modulus ~ muscle + bin + muscle*bin + (1|pp_no), data = child_angry, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_angry_lm_new)
+
+qqnorm(resid(child_angry_lm_new))
+qqline(resid(child_angry_lm_new))
+```
+
+#this one looks much worse... 
+
+### compute new log mod
+
+```{r}
+child_angry <- child_angry %>%
+  mutate(log_modulus_new = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+### try fit model again
+
+```{r}
+child_angry_lm_1 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1|pp_no), data = child_angry, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_angry_lm_1)
+
+qqnorm(resid(child_angry_lm_1))
+qqline(resid(child_angry_lm_1))
+```
+
+
+#this one looks better but not great. 
+
+#use ANOVA to estimate effects
+```{r}
+aov_output <- anova(child_angry_lm_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+```
+
+#use summary to get coefficients
+```{r}
+summary(child_angry_lm_1)
+```
+
+```{r}
+tidy_child_angry1 <- tidy(child_angry_lm_1)
+```
+
+
+# fit model 2 (slope for emotion)
+```{r}
+child_angry_lm_2 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle|pp_no), data = child_angry, REML = FALSE)
+```
+
+
+#get summary, anova and tidy 
+
+```{r}
+summary(child_angry_lm_2)
+```
+
+
+```{r}
+anova(child_angry_lm_2)
+```
+
+
+```{r}
+tidy_child_angry2 <- tidy(child_angry_lm_2)
+```
+
+#check fit
+```{r}
+AIC(child_angry_lm_1)
+AIC(child_angry_lm_2)
+```
+
+```{r}
+anova(child_angry_lm_1, child_angry_lm_2)
+```
+
+#model take home - model 2 with slope for emotion provides a better fit for the data 
+
+
+
+#fit model 3 (slope for emo and bin) - model failed to converge 
+```{r}
+child_angry_lm_3 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle + bin|pp_no), data = child_angry, REML = FALSE)
+```
+
+
+#take home - model 2 provides the best fit for the data 
+
+
+#get confidence intervals 
+```{r}
+confint.merMod(child_angry_lm_2, level = 0.95)
+```
+
+
+```{r}
+
+really_nice_table <- dust(child_angry_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+#child fear 
+
+```{r}
+child_fear <- df %>%
+  filter(emo == "fear") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, muscle, emo, emotion, trial, bin)
+
+glimpse(child_fear)
+
+```
+
+
+```{r}
+
+child_fear$emo <- fct_relevel(child_fear$emo, "fear")
+
+levels(child_fear$emo)
+
+child_fear$bin <- fct_relevel(child_fear$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(child_fear$bin)
+```
+
+## Model 1 (intercepts only)
+
+
+This model predicts Zdiff from fixed effects of emotion (happy, angry), bin (1-10), and emotion x bin interaction. It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). No slopes are included. 
+
+```{r}
+child_fear_lm <- lmer(zdiff ~ muscle + bin + muscle*bin + (1|pp_no) + (1|trial), data = child_fear, REML = FALSE)
+```
+
+### check assumptions - plot residuals and qqplot (check normality)
+```{r}
+plot(child_fear_lm)
+
+qqnorm(resid(child_fear_lm))
+qqline(resid(child_fear_lm))
+```
+As suscepted, need to transform to correct normality. 
+
+### compute log_modulus
+
+log modulus - transforms the absolute value (without the -) and then puts the sign back on. Make a new column for log modulus.
+
+```{r}
+child_fear <- child_fear %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+### fit model again
+
+```{r}
+child_fear_lm_new <- lmer(log_modulus ~ muscle + bin + muscle*bin + (1|pp_no), data = child_fear, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_fear_lm_new)
+
+qqnorm(resid(child_fear_lm_new))
+qqline(resid(child_fear_lm_new))
+```
+
+#this one looks much worse... 
+
+### compute new log mod
+
+```{r}
+child_fear <- child_fear %>%
+  mutate(log_modulus_new = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+### try fit model again
+
+```{r}
+child_fear_lm_1 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1|pp_no), data = child_fear, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_fear_lm_1)
+
+qqnorm(resid(child_fear_lm_1))
+qqline(resid(child_fear_lm_1))
+```
+
+
+#this one looks better but not great. 
+
+#use ANOVA to estimate effects
+```{r}
+aov_output <- anova(child_fear_lm_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+```
+
+#use summary to get coefficients
+```{r}
+summary(child_fear_lm_1)
+```
+
+```{r}
+tidy_child_fear1 <- tidy(child_fear_lm_1)
+```
+
+
+# fit model 2 (slope for emotion)
+```{r}
+child_fear_lm_2 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle|pp_no), data = child_fear, REML = FALSE)
+```
+
+
+#get summary, anova and tidy 
+
+```{r}
+summary(child_fear_lm_2)
+```
+
+
+```{r}
+anova(child_fear_lm_2)
+```
+
+
+```{r}
+tidy_child_fear2 <- tidy(child_fear_lm_2)
+```
+
+#check fit
+```{r}
+AIC(child_angry_lm_1)
+AIC(child_angry_lm_2)
+```
+
+```{r}
+anova(child_angry_lm_1, child_angry_lm_2)
+```
+
+#model take home - model 2 with slope for emotion provides a better fit for the data 
+
+
+
+#fit model 3 (slope for emo and bin) - model failed to converge 
+```{r}
+child_fear_lm_3 <- lmer(log_modulus_new ~ muscle + bin + muscle*bin + (1 + muscle + bin|pp_no), data = child_fear, REML = FALSE)
+```
+
+
+#take home - model 2 provides the best fit for the data 
+
+
+#get confidence intervals 
+```{r}
+confint.merMod(child_fear_lm_2, level = 0.95)
+```
+
+
+```{r}
+
+really_nice_table <- dust(child_fear_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```

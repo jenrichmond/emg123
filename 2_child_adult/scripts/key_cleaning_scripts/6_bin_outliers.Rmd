@@ -1,0 +1,133 @@
+---
+title: "5_bin_outliers"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#load packages
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(tidyr)
+library(dplyr)
+```
+
+
+#read in combined clean no BL outliers data 
+```{r}
+bins <- read_csv(here("rileyraw_data", "adult_child_combined", "zdiff_cheek_brow.csv"))
+```
+
+#make new screening column which is TRUE if the zdiff value for a particular bin is greater than 2sd above the mean zdiff value for tha trial for that participant/emotion/muscle
+```{r}
+bins_out <- bins %>%
+  group_by(pp_no, model, emotion, muscle, trial) %>%
+  mutate(meanZdiff = mean(zdiff), sdZdiff = sd(zdiff)) %>%
+  mutate(bin_outlier = if_else(zdiff > meanZdiff + 2*sdZdiff, "TRUE", "FALSE"))
+```
+
+#Make sure the new screen column is logical TRUE FALSE
+```{r}
+bins_out$bin_outlier <- as.logical(bins_out$bin_outlier)
+```
+
+#How many bins are bad?
+```{r}
+outlier_true <- bins_out %>%
+  filter(bin_outlier == TRUE)
+```
+
+test on 1 participant, 1 trial 
+#pick a pp that has an example of bad bins and work out how to make the bad bin value NA
+```{r}
+example <- bins_out %>%
+  filter(pp_no == "pp406") %>%
+  filter(emotion == "121") %>%
+  filter(trial == "trial1")
+
+glimpse(example)
+```
+
+#use mutate and replace to replace the Zdiff value with NA, if bin_outlier -- TRUE
+
+```{r}
+test <- example %>%
+  mutate(zdiff = replace(zdiff, bin_outlier == "TRUE", NA))
+```
+
+#apply bin screen to whole dataframe
+```{r}
+bins_screen <- bins_out %>%
+  mutate(zdiff = replace(zdiff, bin_outlier == "TRUE", NA))
+
+bins_screen$emotion <- as.character(bins_screen$emotion)
+
+
+glimpse(bins_screen)
+```
+
+#recode emotions 
+```{r}
+
+bins_screen$emotion_code <- bins_screen$emotion
+
+
+child_bins_screen <- bins_screen %>%
+  filter(model == "child") %>%
+  filter(emotion_code == "child-happy", "child-angry", "child-fear", "child-sad") %>%
+  arrange(pp_no, model, emotion, trial, muscle, bin, zdiff)
+
+child_bins_screen$emotion_code <- child_bins_screen$emotion
+
+child_bins_screen <- child_bins_screen %>%
+  mutate(emotion_code = recode(emotion, 
+                               "121" = "child-happy",
+                          "323" = "child-angry",
+                          "424" = "child-fear",
+                          "525" = "child-sad", .default = "NA")) %>%
+  select(pp_no, model, emotion, emotion_code, trial, muscle, bin, zdiff)
+
+
+
+
+
+
+
+bins_screen <- bins_screen %>% 
+  mutate(emotion_code = case_when( %in% "131" ~ "adult-happy"
+                                                emotion %in% "232" ~ "adult-angry",
+                                                emotion %in% "434" ~ "adult-fear",
+                                                emotion %in% "535" ~ "adult-sad",
+                                                emotion %in% "121" ~ "child-happy"
+                                                emotion %in% "323" ~ "child-angry",
+                                                emotion %in% "424" ~ "child-fear",
+                                                emotion %in% "525" ~ "child-sad",
+                                                TRUE ~ "other"))
+
+bins_screen <- bins_screen %>%
+  mutate(emotion_code = recode(emotion_code,"131" = "adult-happy",
+                          "232" = "adult-angry",
+                          "434" = "adult-fear",
+                          "535" = "adult-sad",
+                          "121" = "child-happy",
+                          "323" = "child-angry",
+                          "424" = "child-fear",
+                          "525" = "child-sad", .default = "NA")) %>%
+  select(pp_no, model, emotion, emotion_code, trial, muscle, bin, zdiff)
+
+
+
+```
+
+
+#drop extra columns, write csv
+```{r}
+bins_screen <- bins_screen %>%
+  select(1:8) %>%
+  write_csv(here("rileyraw_data", "adult_child_combined", "zdiff_binscreened.csv"))
+```
+

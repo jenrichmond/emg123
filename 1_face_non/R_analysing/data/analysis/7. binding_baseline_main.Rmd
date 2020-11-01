@@ -1,0 +1,146 @@
+---
+title: "binding_baseline_main"
+author: "Sahar Fatima"
+date: "20/06/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load packages
+```{r}
+library(tidyverse)
+library(here)
+library(dplyr)
+library(ggeasy)
+library(skimr)
+
+```
+
+
+# read in baseline outlier face and non-face, and original face and non-face dataframes 
+
+```{r message=FALSE, warning=FALSE}
+
+face <- read_csv(here("R_cleaning", "data", "clean_data", "faces_clean.csv")) #face data
+non <- read_csv(here("R_cleaning", "data", "clean_data", "non-faces_clean.csv")) #non-face data
+
+BL_face <- read_csv(here("R_analysing", "data", "6_face_BL_outlier.csv")) #baseline face
+BL_non <- read_csv(here("R_analysing", "data", "6_non-face_BL_outlier.csv")) #baseline non-face 
+
+```
+
+# FACE data 
+
+## make new pp_no and condition variables to match BL data frames
+```{r}
+face <- face %>%
+  separate(file_name, into = c("pp_no", "condition"), sep = "_") %>% 
+  mutate(condition = str_sub(condition, end = -6)) 
+```
+
+## select variables + filter out BL data from main data frames
+```{r}
+BL_face_small <- BL_face %>%
+  select(1:7, outlier1.5SD)
+
+face_small <- face %>%
+  filter(!(bin == "bin_0"))
+```
+
+## bind with original data frames and arranging according to pp_no, trial and bin. 
+## Filling in outlier variable with true or false depending on whether baseline was an outlier or not. 
+#### but before this, I am going to test it on 1 - 2 participants. Choosing pp481, because the pp has a mix of outliers and non-outliers
+
+```{r}
+# before binding - make condition character 
+BL_face_small$condition <- as.character(BL_face_small$condition)
+
+
+newBLface <- bind_rows(face_small, BL_face_small) %>%
+  arrange(pp_no, condition, muscle, trial, bin_no) %>%
+  fill(outlier1.5SD)
+
+pp481_face <- newBLface %>%
+  filter(pp_no == "pp481") %>%
+  arrange(pp_no, condition, muscle, trial, bin_no) %>%
+  fill(outlier1.5SD)
+
+
+```
+
+
+# NON-FACE data 
+
+## make new pp_no and condition variables to match BL data frames
+```{r}
+non <- non %>%
+  separate(file_name, into = c("pp_no", "condition"), sep = "_") %>% 
+  mutate(condition = str_sub(condition, end = -6)) 
+```
+
+
+## select variables + filter out BL data from main data frames
+```{r}
+BL_non_small <- BL_non %>%
+  select(1:7, outlier1.5SD)
+
+non_small <- non %>%
+  filter(!(bin == "bin_0"))
+```
+
+## bind with original data frames and arranging according to pp_no, trial and bin. 
+## Filling in outlier variable with true or false depending on whether baseline was an outlier or not.
+```{r}
+# before binding - make condition character 
+BL_non_small$condition <- as.character(BL_non_small$condition)
+
+newBLnon <- bind_rows(non_small, BL_non_small) %>%
+  arrange(pp_no, condition, muscle, trial, bin_no) %>%
+  fill(outlier1.5SD)
+```
+
+ 
+# interim summary 
+So far, we have read in the main and BL dataframes, combined them using filter, bind and arrange. Following this, we filled in the oultlier1.5SD variable!
+
+## Going to filter out all instances where outlier1.5SD is TRUE and then using write_csv will write the new face and non-face data frames. going to make a data frame for outliers as well. 
+
+```{r}
+# face data frame with BL outliers taken out
+face_false <- newBLface %>%
+  filter(!(outlier1.5SD == "TRUE")) 
+
+# face data frame containing only BL outliers
+face_outlier <- newBLface %>%
+  filter(outlier1.5SD == "TRUE")
+
+# non-face data frame with BL outliers taken out
+non_false <- newBLnon %>%
+  filter(!(outlier1.5SD == "TRUE")) 
+
+# non-face data frame containing only BL outliers
+non_outlier <- newBLnon %>%
+  filter(outlier1.5SD == "TRUE")
+```
+
+### writing csv's
+```{r}
+write_csv(face_false, path = here("R_analysing", "data", "7_face_false.csv"))
+
+write_csv(face_outlier, path = here("R_analysing", "data", "7_face_outlier.csv"))
+
+write_csv(non_false, path = here("R_analysing", "data", "7_non_false.csv"))
+
+write_csv(non_outlier, path = here("R_analysing", "data", "7_non_outlier.csv"))
+```
+
+
+
+
+
+
+
+

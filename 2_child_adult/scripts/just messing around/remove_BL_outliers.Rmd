@@ -1,0 +1,47 @@
+---
+title: "remove_outliers"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#load packages
+```{r}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+library(skimr)
+```
+
+#read in data
+
+```{r}
+out_1.5sd <- read_csv(here("rileyraw_data", "clean_data", "out_1.5sd"))
+
+out_2sd <- read_csv(here("rileyraw_data", "clean_data", "out_2sd"))
+```
+
+#create separate dataframes for outliers and non-outliers for 1.5sd and 2sd 
+```{r}
+out_1.5_true <- out_1.5sd %>%
+  filter(outlier == "TRUE") %>%
+  select(pp_no:rms)
+
+out_1.5_false <- out_1.5sd %>%
+  filter(outlier == "FALSE") %>%
+  select(pp_no:rms)
+
+out_2_true <- out_2sd %>%
+  filter(outlier == "TRUE") %>%
+  select(pp_no:rms)
+
+out_2_false <- out_2sd %>%
+  filter(outlier == "FALSE") %>%
+  select(pp_no:rms)
+```
+

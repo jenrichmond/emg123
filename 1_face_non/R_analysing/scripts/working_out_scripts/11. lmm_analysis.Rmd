@@ -1,0 +1,796 @@
+---
+title: "11_lmm_analysis"
+author: "Sahar Fatima"
+date: "21/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load packages 
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+```
+
+## read in data 
+
+```{r message=FALSE, warning=FALSE}
+face <- read_csv(here("R_analysing", "data", "9_face_zdiff_screened.csv")) %>%
+  mutate(condition = recode(condition, "429" = "angry","673" = "happy", .default = "NA"))
+  
+non <- read_csv(here("R_analysing", "data", "9_non_zdiff_screened.csv")) %>%
+  mutate(condition = recode(condition, "913" = "negative","285" = "positive", .default = "NA"))
+
+# combine face and non
+
+face_non <- bind_rows(face, non) %>%
+  arrange(pp_no, condition, trial, muscle, bin)
+```
+
+## fix data types 
+
+```{r}
+face$condition <- as.factor(face$condition)
+
+face <- face %>% 
+  mutate_if(is.character,as.factor)
+
+non$condition <- as.factor(non$condition)
+
+non <- non %>% 
+  mutate_if(is.character,as.factor)
+
+```
+
+## make small data frames
+```{r}
+#face_cheek 
+face_cheek <- face %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#face_brow
+face_brow <- face %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#non_cheek 
+non_cheek <- non %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#non_brow
+non_brow <- non %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, condition, trial, bin)
+```
+
+# FACE
+## CHEEK 
+
+### Cheek LMM Model 1 (intercepts only)
+This model predicts Zdiff from fixed effects of condition (happy, negative) and bin (1-10),  and their interactions (condition x bin). 
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). This model doesn’t include slopes (yet).
+#### construct model 
+
+```{r}
+lm_face_cheek <- lmer(Zdiff ~ condition + bin + condition*bin + (1|pp_no), data = face_cheek, REML = FALSE) 
+
+```
+
+#### use anova to estimate effects
+```{r}
+anova(lm_face_cheek)
+```
+
+#### use summary to get coefficients
+
+```{r}
+summary(lm_face_cheek)
+```
+
+check if normality assumptions are met 
+
+``` {r}
+
+plot(lm_face_cheek)
+
+qqnorm(resid(lm_face_cheek))
+qqline(resid(lm_face_cheek)) # spoiler alert they aren't
+
+```
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative = log modulus transform. This transformation log transforms the absolute value (without the -) and then puts the sign back on). Make a new column for log modulus.
+``` {r}
+face_cheek <- face_cheek %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run new model 
+
+lm_face_cheek_1 <- lmer(log_modulus ~ condition + bin + condition:bin + (1|pp_no), data = face_cheek, REML = FALSE)
+```
+
+#### test assumptions again 
+Residuals are more evenly distributed than before, qq plot is SO much better (at least the sample quantiles are on the same scale). It is not great but maybe the best we can do.
+
+```{r}
+plot(lm_face_cheek_1)
+
+qqnorm(resid(lm_face_cheek_1))
+qqline(resid(lm_face_cheek_1))
+
+```
+
+#### use anova to estimate effects
+
+``` {r}
+# use anova to estimate effects
+anova_f_cheek_1 <- anova(lm_face_cheek_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+# use summary to get coefficients
+summary(lm_face_cheek_1)
+
+```
+
+### Cheek Model 2 (slopes for condition)
+#### run model
+```{r}
+lm_face_cheek_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = face_cheek, REML = FALSE)
+```
+
+#### get anova/summary
+```{r}
+anova_f_cheek_2 <- anova(lm_face_cheek_2)  %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_face_cheek_2)
+```
+
+#### check fit
+AIC
+```{r}
+AIC(lm_face_cheek_1)
+AIC(lm_face_cheek_2)
+```
+
+#### likelihood ratio test 
+Use anova to test if there is difference in fit.
+
+```{r}
+anova(lm_face_cheek_1, lm_face_cheek_2)
+```
+
+#### model 2 take home
+Model 2 with slopes for condition is a better fit than model 1 including intercepts only
+
+### CHeek Model 3 (slopes for bin)
+#### run model 
+```{r}
+# lm_face_cheek_3 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + bin|pp_no), data = face_cheek, REML = FALSE)
+# yes ok it converges - Model 2 still better fit
+```
+
+#### check fit
+AIC
+```{r}
+#AIC(lm_face_cheek_3)
+# AIC(lm_face_cheek_2)
+```
+
+### Cheek Model 4 (slopes for condition and bin)
+#### run model
+```{r}
+# lm_face_cheek_4 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = face_cheek, REML = FALSE)
+
+# ahh it ran - took like 15 minutes bbut it worked! ok now to check fit
+```
+
+#### check fit
+AIC
+```{r}
+# AIC(lm_face_cheek_4)
+# AIC(lm_face_cheek_2)
+```
+
+#### model 4 take home 
+Model 2 with slopes for condition is a better fit than model 4 with slopes for bin and condition 
+
+### Cheek Model 5 (slopes for bin:condition interaction) - failed to converge
+```{r}
+# lm_face_cheek_5 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition:bin|pp_no), data = face_cheek, REML = FALSE)
+
+# after two hours - the model failed to converge 
+```
+
+## BROW 
+
+### Brow Model 1 (intercepts for participants)
+#### construct model 
+
+```{r}
+lm_face_brow <- lmer(Zdiff ~ condition + bin + condition*bin + (1|pp_no), data = face_brow, REML = FALSE) 
+```
+
+#### use anova to estimate effects
+```{r}
+anova(lm_face_brow)
+```
+
+#### use summary to get coefficients
+
+```{r}
+summary(lm_face_brow)
+
+print(lm_face_brow, correlation = TRUE)
+```
+
+### test cheek model assumptions
+#### plot residuals 
+
+```{r}
+plot(lm_face_brow)
+```
+
+##### qqplot 
+```{r}
+qqnorm(resid(lm_face_brow))
+qqline(resid(lm_face_brow))
+```
+
+```{r}
+face_brow <- face_brow %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run new model 
+lm_face_brow_1 <- lmer(log_modulus ~ condition + bin + condition:bin + (1|pp_no), data = face_brow, REML = FALSE)
+```
+
+##### test assumptions again 
+
+```{r}
+plot(lm_face_brow_1)
+
+qqnorm(resid(lm_face_brow_1))
+qqline(resid(lm_face_brow_1))
+
+```
+
+
+#### use anova to estimate effects
+
+```{r}
+# anova
+anova_f_brow_1 <- anova(lm_face_brow_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_face_brow_1)
+
+```
+
+### Brow Model 2 (slopes for condition)
+#### run model
+```{r}
+lm_face_brow_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = face_brow, REML = FALSE)
+```
+
+#### get anova/summary
+```{r}
+anova_f_brow_2 <- anova(lm_face_brow_2)  %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_face_brow_2)
+```
+
+#### check fit
+AIC
+```{r}
+AIC(lm_face_brow_1)
+AIC(lm_face_brow_2)
+```
+
+#### likelihood ratio test 
+Use anova to test if there is difference in fit.
+
+```{r}
+anova(lm_face_brow_1, lm_face_brow_2)
+```
+
+#### model 2 take home 
+Model 2 with slopes for condition is a better fit than model 1 with intercepts only
+
+### Brow Model 3 (slopes for bin)
+#### run model 
+
+```{r}
+# lm_face_brow_3 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + bin|pp_no), data = face_brow, REML = FALSE)
+
+# it worked!
+```
+
+#### check fit
+AIC
+```{r}
+# AIC(lm_face_brow_3)
+# AIC(lm_face_brow_2)
+```
+
+#### model 3 take home 
+Model 2 with random slopes for condition provides better fit of model than model 3 with random slopes for bin
+
+### Brow Model 4 (slopes for bin and condition) - failed to converge
+#### run model
+```{r}
+# lm_face_brow_4 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = face_brow, REML = FALSE)
+```
+
+### Brow Model 5 (slopes for bin x condition) - failed to converge
+```{r}
+# lm_face_brow_5 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition:bin|pp_no), data = face_brow, REML = FALSE)
+
+# ran this for like 30 mins still running
+```
+
+
+# NON-FACE
+## CHEEK 
+
+### Cheek Model 1 (Intercepts for participant only)
+#### construct model 
+
+```{r}
+lm_non_cheek <- lmer(Zdiff ~ condition + bin + condition*bin + (1|pp_no), data = non_cheek, REML = FALSE) 
+
+```
+
+#### use anova to estimate effects
+```{r}
+anova(lm_non_cheek)
+```
+
+#### use summary to get coefficients
+
+```{r}
+summary(lm_non_cheek)
+```
+
+### test cheek model assumptions
+#### plot residuals 
+
+```{r}
+plot(lm_non_cheek)
+```
+
+##### qqplot 
+```{r}
+qqnorm(resid(lm_non_cheek))
+qqline(resid(lm_non_cheek))
+```
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative = log modulus transform. This transformation log transforms the absolute value (without the -) and then puts the sign back on). Make a new column for log modulus.
+``` {r}
+non_cheek <- non_cheek %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run new model 
+
+lm_non_cheek_1 <- lmer(log_modulus ~ condition + bin + condition:bin + (1|pp_no), data = non_cheek, REML = FALSE)
+```
+
+#### test assumptions again 
+Residuals are more evenly distributed than before, it is not great but maybe the best we can do.
+
+```{r}
+plot(lm_non_cheek_1)
+
+qqnorm(resid(lm_non_cheek_1))
+qqline(resid(lm_non_cheek_1))
+
+```
+
+#### use anova to estimate effects
+
+``` {r}
+# use anova to estimate effects
+anova_n_cheek_1 <- anova(lm_non_cheek_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+# use summary to get coefficients
+summary(lm_non_cheek_1)
+
+```
+
+
+### Cheek Model 2 (slopes for condition)
+#### run model 
+```{r}
+lm_non_cheek_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = non_cheek, REML = FALSE)
+```
+
+#### check fit 
+```{r}
+AIC(lm_non_cheek_1)
+AIC(lm_non_cheek_2)
+```
+
+#### LRT
+```{r}
+anova(lm_non_cheek_1, lm_non_cheek_2)
+```
+
+
+#### get anova/summary
+```{r}
+
+anova_n_cheek_2 <- anova(lm_non_cheek_2) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+# use summary to get coefficients
+summary(lm_non_cheek_2)
+```
+
+#### model 2 take home 
+model 2 with random slopes for condition provide better fit than model 1 (with intercepts only)
+
+
+### Cheek Model 3 (slopes for condition and bin)
+#### run model 
+
+```{r}
+# lm_non_cheek_3 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = non_cheek, REML = FALSE)
+# omg it worked! dosen't matter - model 2 still a better fit
+```
+
+#### check fit  
+```{r}
+# AIC(lm_non_cheek_3)
+# AIC(lm_non_cheek_2)
+
+```
+
+### Cheek Model 4 (slopes for bin)
+#### run model 
+```{r}
+# lm_non_cheek_4 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + bin|pp_no), data = non_cheek, REML = FALSE)
+
+# it worked - took some time though
+```
+
+#### check fit  
+```{r}
+# AIC(lm_non_cheek_4)
+# AIC(lm_non_cheek_2)
+```
+
+### model 4 take home 
+model 4 runs but not a better fit than model 2 
+
+### Cheek Model 5 (slopes for condition:bin)
+#### run model 
+
+```{r}
+# lm_non_cheek_5 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition:bin|pp_no), data = non_cheek, REML = FALSE)
+
+# ok this has been running for 60 mins and nothing so far!
+# doesn't look like it is going to run
+```
+
+
+## BROW 
+
+```{r}
+non_brow <- non %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, condition, trial, bin)
+
+```
+
+### Brow Model 1
+#### construct model 
+
+```{r}
+lm_non_brow <- lmer(Zdiff ~ condition + bin + condition*bin + (1|pp_no), data = non_brow, REML = FALSE) 
+
+```
+
+
+#### test brow model assumptions
+##### plot residuals 
+
+```{r}
+plot(lm_non_brow)
+```
+
+##### qqplot 
+```{r}
+qqnorm(resid(lm_non_brow))
+qqline(resid(lm_non_brow))
+
+```
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative = log modulus transform. This transformation log transforms the absolute value (without the -) and then puts the sign back on). Make a new column for log modulus.
+``` {r}
+non_brow <- non_brow %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run new model 
+
+lm_non_brow_1 <- lmer(log_modulus ~ condition + bin + condition:bin + (1|pp_no), data = non_brow, REML = FALSE)
+```
+
+#### test assumptions again 
+Residuals are more evenly distributed than before, qq plot is SO much better (at least the sample quantiles are on the same scale). It is not great but maybe the best we can do.
+
+```{r}
+plot(lm_non_brow_1)
+
+qqnorm(resid(lm_non_brow_1))
+qqline(resid(lm_non_brow_1))
+
+```
+
+#### use anova to estimate effects
+
+``` {r}
+# use anova to estimate effects
+anova_n_brow_1 <- anova(lm_non_brow_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+# use summary to get coefficients
+summary(lm_non_brow_1)
+```
+
+### Brow Model 2 (slopes for condition)
+#### run model
+```{r}
+lm_non_brow_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = non_brow, REML = FALSE)
+```
+
+#### check fit 
+```{r}
+AIC(lm_non_brow_2)
+AIC(lm_non_brow_1)
+```
+
+#### LRT 
+```{r}
+anova(lm_non_brow_1, lm_non_brow_2)
+```
+
+#### anova/summary for Model 2
+```{r}
+anova_n_brow_2 <- anova(lm_non_brow_2) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_non_brow_2)
+
+```
+
+#### model 2 take home 
+model 2 provides better fit but decreases F stat for condition - which was previously close to significance?
+
+### Brow Model 3 (slopes for condition + bin) - model failed to converge
+#### run model 
+```{r}
+# lm_non_brow_3 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = non_brow, REML = FALSE)
+```
+
+#### model 3 take home
+model 3 failed to converge, so model 2 stil provides better fit of data 
+
+### Brow Model 4 (slopes for bin) - failed to converge 
+#### run model 
+
+```{r}
+# lm_non_brow_4 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + bin|pp_no), data = non_brow, REML = FALSE)
+```
+
+### Brow Model 5 (slopes for condition:bin) - 
+#### run model 
+
+```{r}
+# lm_non_brow_5 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition:bin|pp_no), data = non_brow, REML = FALSE)
+
+#it's been going for 1.5 hours - safe to say it probs won't run?
+```
+
+
+# TAKE HOME
+## FACE 
+### CHEEK 
+
+#### ok need to back track a bit to make sure that this model is actually the best fit. 
+what would the model fit look like if we added main effects of condition, then bin, then the interaction.
+```{r}
+face_cheek_cond <- lmer(log_modulus ~ condition + (1 + condition|pp_no), data = face_cheek, REML = FALSE)
+
+anova(face_cheek_cond)
+```
+
+
+```{r}
+face_cheek_cond_bin <- lmer(log_modulus ~ condition + bin + (1 + condition + bin|pp_no), data = face_cheek, REML = FALSE)
+```
+
+```{r}
+face_cheek_cond_bin_interaction <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = face_cheek, REML = FALSE)
+```
+
+#### compare fits 
+```{r}
+AIC(face_cheek_cond)
+AIC(face_cheek_cond_bin)
+AIC(face_cheek_cond_bin_interaction)
+```
+
+ok there doesn't seem to be a sig difference between the fits of the model - so can I just use the model with the interaction 
+
+#### compare fit for previously best fit model and current one?
+```{r}
+AIC(lm_face_cheek_2, face_cheek_cond, face_cheek_cond_bin, face_cheek_cond_bin_interaction)
+anova(lm_face_cheek_2, face_cheek_cond) 
+anova(face_cheek_cond_bin, face_cheek_cond_bin_interaction)
+
+```
+
+### Best fit was Model 2 with random slopes for Condition
+
+```{r face_cheek}
+lm_face_cheek_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = face_cheek, REML = FALSE)
+
+anova_f_cheek_2 <- anova(lm_face_cheek_2)  %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_face_cheek_2)
+```
+
+### BROW 
+
+#### ok need to back track a bit to make sure that this model is actually the best fit. 
+what would the model fit look like if we added main effects of condition, then bin, then the interaction.
+```{r}
+face_brow_cond <- lmer(log_modulus ~ condition + (1 + condition|pp_no), data = face_brow, REML = FALSE)
+```
+
+
+```{r}
+face_brow_cond_bin <- lmer(log_modulus ~ condition + bin + (1 + condition + bin|pp_no), data = face_brow, REML = FALSE)
+```
+
+```{r}
+# failed to converge
+face_brow_cond_bin_interaction <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = face_brow, REML = FALSE)
+```
+
+#### compare fits 
+```{r}
+anova(face_brow_cond, face_brow_cond_bin, face_brow_cond_bin_interaction)
+```
+
+#### compare fit for previously best fit model and current one?
+```{r}
+AIC(lm_face_brow_2, face_cheek_cond, face_cheek_cond_bin, face_cheek_cond_bin_interaction)
+
+
+```
+> ok so face_brow_cond is the best fit but how to get p-values, anova table with just condition as the fixed effect?
+
+```{r}
+anova(face_brow_cond_bin)
+```
+
+
+Best fit was Model 2 
+
+```{r face_brow}
+lm_face_brow_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = face_brow, REML = FALSE)
+
+anova_f_brow_2 <- anova(lm_face_brow_2)  %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_face_brow_2)
+```
+
+
+## NON-FACE 
+### CHEEK 
+
+#### ok need to back track a bit to make sure that this model is actually the best fit. 
+what would the model fit look like if we added main effects of condition, then bin, then the interaction.
+```{r}
+non_cheek_cond <- lmer(log_modulus ~ condition + (1 + condition|pp_no), data = non_cheek, REML = FALSE)
+```
+
+
+```{r}
+non_cheek_cond_bin <- lmer(log_modulus ~ condition + bin + (1 + condition + bin|pp_no), data = non_cheek, REML = FALSE)
+```
+
+```{r}
+non_cheek_cond_bin_interaction <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = non_cheek, REML = FALSE)
+```
+
+#### compare fits 
+```{r}
+AIC(non_cheek_cond)
+AIC(non_cheek_cond_bin)
+AIC(non_cheek_cond_bin_interaction)
+AIC(lm_non_cheek_2)
+
+anova(non_cheek_cond_bin_interaction, lm_non_cheek_2)
+```
+
+Best fit was Model 2 which included random slopes for condition across the random effect of participant. 
+
+```{r non_cheek}
+lm_non_cheek_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = non_cheek, REML = FALSE)
+
+anova_n_cheek_2 <- anova(lm_non_cheek_2) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+# use summary to get coefficients
+summary(lm_non_cheek_2)
+```
+
+### BROW
+
+#### ok need to back track a bit to make sure that this model is actually the best fit. 
+what would the model fit look like if we added main effects of condition, then bin, then the interaction.
+```{r}
+non_brow_cond <- lmer(log_modulus ~ condition + (1 + condition|pp_no), data = non_brow, REML = FALSE)
+```
+
+
+```{r}
+# failed to converge
+non_brow_cond_bin <- lmer(log_modulus ~ condition + bin + (1 + condition + bin|pp_no), data = non_brow, REML = FALSE)
+```
+
+```{r}
+# failed to converge
+non_brow_cond_bin_interaction <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition + bin|pp_no), data = non_brow, REML = FALSE)
+```
+
+```{r}
+anova(non_brow_cond, lm_non_brow_2)
+```
+
+
+Best fit was Model 2 which included random slopes for condition across the random effect of participant. 
+
+```{r non_brow}
+
+lm_non_brow_2 <- lmer(log_modulus ~ condition + bin + condition:bin + (1 + condition|pp_no), data = non_brow, REML = FALSE)
+
+anova_n_brow_2 <- anova(lm_non_brow_2) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_non_brow_2)
+
+```

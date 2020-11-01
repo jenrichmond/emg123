@@ -1,0 +1,406 @@
+---
+title: "8d_brow_SF"
+output: html_document
+---
+
+#load packages
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+```
+
+#read in data 
+```{r}
+df <- read_csv(here("rileyraw_data", "adult_child_combined", "zdiff_binscreened.csv"))
+
+df$emotion <- as.factor(df$emotion)
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+
+```
+
+
+SAD-FEAR
+
+#BROW-CHILD
+
+#Make df with just sad/fear child face for brow
+
+```{r}
+SF_child_brow <- df %>%
+  filter(emotion %in% c("child-sad", "child-fear")) %>%
+  filter(muscle == "brow") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(SF_child_brow)
+```
+
+#transform to correct normality
+
+```{r}
+SF_child_brow <- SF_child_brow %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+
+```
+
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion and slope for emotion 
+```{r}
+child_brow_emo2 <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = SF_child_brow, REML = FALSE)
+
+beep(1)
+
+```
+
+#just main effect of emotion and bin, and slope for emotion 
+```{r}
+child_brow_emo_bin2 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = SF_child_brow, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin and emotion*bin, and slope for emotion (slope for bin doesnt converge)
+
+```{r}
+child_brow_emo_bin_interaction2 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = SF_child_brow, REML = FALSE)
+
+beep(1)
+```
+
+
+```{r}
+AIC(child_brow_emo2)
+AIC(child_brow_emo_bin2)
+AIC(child_brow_emo_bin_interaction2)
+```
+
+```{r}
+anova(child_brow_emo2, child_brow_emo_bin2)
+```
+
+
+```{r}
+anova(child_brow_emo_bin2, child_brow_emo_bin_interaction2)
+```
+
+#BEST FIT
+#the model that fits the data the best includes a main effect for emotion and a slope for emotion 
+
+```{r}
+child_tidy_brow2 <- tidy(child_brow_emo2)
+```
+
+#really nice table
+```{r}
+really_nice_table <- dust(child_brow_emo2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+
+#BROW-ADULT
+
+
+#Make df with just sad/fear adult face for brow
+
+```{r}
+SF_adult_brow <- df %>%
+  filter(emotion %in% c("adult-sad", "adult-fear")) %>%
+  filter(muscle == "brow") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(SF_adult_brow)
+```
+
+#transform to correct normality
+
+```{r}
+SF_adult_brow <- SF_adult_brow %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+
+```
+
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion and slope for emotion 
+```{r}
+adult_brow_emo2 <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = SF_adult_brow, REML = FALSE)
+
+beep(1)
+
+```
+
+#just main effect of emotion and bin, and slope for emotion 
+```{r}
+adult_brow_emo_bin2 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = SF_adult_brow, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin and emotion*bin, and slope for emotion (slope for bin doesnt converge)
+
+```{r}
+adult_brow_emo_bin_interaction2 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = SF_adult_brow, REML = FALSE)
+
+beep(1)
+```
+
+
+```{r}
+AIC(adult_brow_emo2)
+AIC(adult_brow_emo_bin2)
+AIC(adult_brow_emo_bin_interaction2)
+```
+
+```{r}
+anova(adult_brow_emo2, adult_brow_emo_bin2)
+```
+
+
+```{r}
+anova(adult_brow_emo_bin2, adult_brow_emo_bin_interaction2)
+```
+
+#BEST FIT
+#the model that fits the data the best includes a main effect for emotion and a slope for emotion 
+
+```{r}
+adult_tidy_brow2 <- tidy(adult_brow_emo2)
+```
+
+#really nice table
+```{r}
+really_nice_table <- dust(adult_brow_emo2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+
+
+```
+
+
+#ALL_EMO-CHILD
+
+BROW
+
+#Make df with just child face for brow
+
+```{r}
+child_brow <- df %>%
+  filter(muscle == "brow") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(child_brow)
+```
+
+#transform to correct normality
+
+```{r}
+child_brow <- child_brow %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+
+```
+
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion 
+```{r}
+child_brow_emo4 <- lmer(log_modulus ~ emotion + (1|pp_no), data = child_brow, REML = FALSE)
+
+beep(1)
+
+```
+
+#just main effect of emotion and bin, and slope for emotion 
+```{r}
+child_brow_emo_bin4 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = child_brow, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin and emotion*bin, and slope for emotion (slope for bin doesnt converge)
+
+```{r}
+child_brow_emo_bin_interaction4 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = child_brow, REML = FALSE)
+
+beep(1)
+```
+
+
+```{r}
+AIC(child_brow_emo4)
+AIC(child_brow_emo_bin4)
+AIC(child_brow_emo_bin_interaction4)
+```
+
+```{r}
+anova(child_brow_emo4, child_brow_emo_bin4)
+```
+
+
+```{r}
+anova(child_brow_emo_bin4, child_brow_emo_bin_interaction4)
+```
+
+#BEST FIT
+#the model that fits the data the best includes a main effect for emotion and bin and a slope for emotion 
+
+```{r}
+child_tidy_brow4 <- tidy(child_brow_emo_bin4)
+```
+
+#really nice table 
+
+```{r}
+really_nice_table <- dust(child_brow_emo_bin4) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+#ALL_EMO_ADULT
+
+BROW
+
+#Make df with just adult face for brow
+
+```{r}
+adult_brow <- df %>%
+  filter(muscle == "brow") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(adult_brow)
+```
+
+#transform to correct normality
+
+```{r}
+adult_brow <- adult_brow %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+
+```
+
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion and slope for emotion
+```{r}
+adult_brow_emo4 <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = adult_brow, REML = FALSE)
+
+beep(1)
+
+```
+
+#just main effect of emotion and bin, and slope for emotion 
+```{r}
+adult_brow_emo_bin4 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = adult_brow, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin and emotion*bin, and slope for emotion (slope for bin doesnt converge)
+
+```{r}
+adult_brow_emo_bin_interaction4 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = adult_brow, REML = FALSE)
+
+beep(1)
+```
+
+
+```{r}
+AIC(adult_brow_emo4)
+AIC(adult_brow_emo_bin4)
+AIC(adult_brow_emo_bin_interaction4)
+```
+
+```{r}
+anova(adult_brow_emo4, adult_brow_emo_bin4)
+```
+
+```{r}
+anova(adult_brow_emo_bin4, adult_brow_emo_bin_interaction4)
+```
+
+
+#BEST FIT
+
+#The model that fits the data the best is one with a main effect of emotion and slope for emotion
+
+
+```{r}
+adult_tidy_brow4 <- tidy(adult_brow_emo4)
+```
+
+
+#really nice table 
+```{r}
+really_nice_table <- dust(adult_brow_emo4) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+
+
+
+
+
+
+
+

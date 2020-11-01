@@ -1,0 +1,105 @@
+---
+title: "clean_baseline"
+output: html_document
+---
+
+# Load packages
+```{r}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+library(readr)
+library(readxl)
+library(janitor)
+```
+
+
+
+#read in clean data.csv
+
+```{r}
+clean_data <- read_csv(here("rileyraw_data", "adult_child_combined", "child_adult_clean.csv"))
+
+```
+
+
+# arrange by pp, emotion, muscle. Add an empty bl_outlier column 
+
+```{r}
+bl_data <- clean_data %>%
+  filter(bin == "bin_0") %>%
+  arrange(pp_no, emotion, muscle) %>%
+  mutate(bl_outlier = "")
+
+stim_data <- clean_data %>%
+  filter(bin != "bin_0") %>%
+  arrange(pp_no, emotion, muscle) %>%
+  mutate(bl_outlier = "")
+```
+ 
+# add mean and sd columns and true false if bl_rms is > 1.5sd above the mean for the participant, emotion, muscle
+```{r}
+
+bl_stats <- bl_data %>%
+  group_by(pp_no, emotion, muscle) %>%
+  mutate(meanRMS = mean(rms), sdRMS = sd(rms)) %>%
+  mutate(bl_outlier = if_else(rms > meanRMS + 1.5*sdRMS, "TRUE", "FALSE"))
+
+
+```
+
+
+#make outliter logical for child and adult face data
+
+```{r}
+bl_stats$bl_outlier <- as.logical(bl_stats$bl_outlier)
+
+```
+
+#count how many trials have bad baselien
+
+```{r}
+bl_stats %>%
+  group_by(pp_no, emotion, muscle) %>%
+  summarise(trialcount = n(), trialbad = sum(bl_outlier))
+
+```
+
+
+# drop extra variables, make bl_outlier as.character and bind stim and BL back together
+
+```{r}
+bl_bind <- bl_stats %>%
+  select(pp_no:rms, bl_outlier)
+
+stim_data$bl_outlier <- as.logical(stim_data$bl_outlier)
+
+bl_stim <- bind_rows(bl_bind, stim_data) %>%
+  arrange(pp_no, emotion, trial, muscle, bin_no) %>%
+  fill(bl_outlier)
+
+```
+
+#filter out whole trials with bl outliers, write to csv 
+```{r}
+no_bl_outliers <- bl_stim %>%
+  filter(bl_outlier == FALSE) %>%
+  select(-bl_outlier)
+
+no_bl_outliers %>% 
+  write_csv(here("rileyraw_data", "adult_child_combined", "clean_no_bl_outliers.csv"))
+```
+
+#make a df with only outlier trials and write to csv
+```{r}
+just_bl_outliers <- bl_stim %>%
+  filter(bl_outlier == TRUE)
+
+just_bl_outliers %>%
+  write_csv(here("rileyraw_data", "adult_child_combined", "clean_just_bl_outliers.csv"))
+
+
+```
+

@@ -1,0 +1,25 @@
+README file for post hoc extended cleaning and analysis
+
+Three folders:
+1. scripts - contains all cleaning, analysis and plotting scripts
+2. data - contains data files from each step of cleaning and anaysis
+3. plots - contains plots from "7_plotting_2000.Rmd" script
+
+Data cleaning and analysis steps:
+STEP 1: Reading in cleaning function codes: extended_cleaning_analysis/cleanwrite_function_extendedanalysis
+
+STEP 2: Run 1_map_extended_data.Rmd to read in individual raw excel files, remove empty columns, rename variables, make data long and write individual pp files to a .csv. This will also bind all individual pp csv files to two final csv's (one for facial responding and the other for non-facial responding)
+
+STEP 3: Run 2_baseline_outlier_2000.Rmd to check for baseline scores that are more than 1.5 standard deviations above the mean.
+
+STEP 4: Run 3_removing_outliers_binding_to_main to: read in baseline outlier face and non-face dataframes, select variables, bind with original data frames and arranging according to pp_no, trial and bin. Filling in outlier variable with true or false depending on whether baseline was an outlier or not. Finally, this script makes new data frames: face and non-face data that excluding all baseline outliers, and face and non-face df's with all outliers.
+
+STEP 5: Run 4_calculating_zscores_2000 to calculate baseline-corrected z-scores.
+
+STEP 6: Run 5_removing_bin_outliers to read in new data frames without BL outliers, calculated mean and SD (grouping by - pp_no, condition, trial and muscle) and make a new outlier variable. rreplace outlier rms values with N/A, recombine face and non-face data frames with no outliers with BL data frame with no outliers and write_csv's.
+
+STEP 7:
+  Part a. LMM cheek and brow muscle responding analysis for 500 - 2000ms post-stimulus onset in response to facial stimuli (i.e., to happy and angry faces)
+  Part b. LMM cheek and brow muscle responding analysis for 500 - 2000ms post-stimulus onset in response to non-facial stimuli (i.e., to positively- and negatively-valenced stimuli)
+
+STEP 8: Plotting Mean z-score differences in rms scores for cheek and brow responding to facial and non-facial stimuli for extended data (i.e., from 500 - 2000ms post-stimulus onset)

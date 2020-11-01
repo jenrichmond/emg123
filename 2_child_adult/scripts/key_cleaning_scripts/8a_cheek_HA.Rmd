@@ -1,0 +1,424 @@
+---
+title: "8a_cheek_analysis"
+output:
+  pdf_document: default
+  html_document: default
+---
+#load packages
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+```
+
+#read in data 
+```{r}
+df <- read_csv(here("rileyraw_data", "adult_child_combined", "zdiff_binscreened.csv"))
+
+df$emotion <- as.factor(df$emotion)
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+```
+happy-angry 
+
+#CHILD-CHEEK
+
+#Make df with just happy/angry child face for cheek
+
+```{r}
+HA_child_cheek <- df %>%
+  filter(emotion %in% c("child-happy", "child-angry")) %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(HA_child_cheek)
+```
+
+#transform to correct normality
+
+```{r}
+HA_child_cheek <- HA_child_cheek %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion and slope for emotion 
+```{r}
+child_cheek_emo2 <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = HA_child_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#just main effect of emotion and bin, and slope for emotion 
+```{r}
+child_cheek_emo_bin2 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = HA_child_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin and emotion*bin, and slope for emotion (slope for bin doesnt converge)
+
+```{r}
+child_cheek_emo_bin_interaction2 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = HA_child_cheek, REML = FALSE)
+
+beep(1)
+```
+
+
+#test for best fit 
+
+```{r}
+AIC(child_cheek_emo2)
+
+AIC(child_cheek_emo_bin2)
+
+AIC(child_cheek_emo_bin_interaction2)
+```
+
+```{r}
+anova(child_cheek_emo2, child_cheek_emo_bin2)
+```
+
+```{r}
+anova(child_cheek_emo_bin2, child_cheek_emo_bin_interaction2)
+```
+
+
+#BEST FIT
+##the model with emotion and bin main effects and slope for emotion provides the best fit for the data 
+
+```{r}
+child_tidy_cheek2 <- tidy(child_cheek_emo_bin2)
+
+anova(child_cheek_emo_bin2)
+```
+```{r}
+summary(child_cheek_emo_bin2)
+```
+
+#really nice table 
+
+```{r}
+really_nice_table <- dust(child_cheek_emo_bin2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+
+#ADULT-CHEEK
+#now do the same for adult data 
+
+```{r}
+HA_adult_cheek <- df %>%
+  filter(emotion %in% c("adult-happy", "adult-angry")) %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(HA_adult_cheek)
+```
+
+#transform to correct to normality
+```{r}
+HA_adult_cheek <- HA_adult_cheek %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion and slope for emotion 
+```{r}
+adult_cheek_emo2 <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = HA_adult_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin, and slope for emotion 
+```{r}
+adult_cheek_emo_bin2 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = HA_adult_cheek, REML = FALSE)
+
+beep(1)
+```
+
+
+#main effect of emotion and bin and emotion*bin interaction, and slope for emotion 
+```{r}
+adult_cheek_emo_bin_interaction2 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = HA_adult_cheek, REML = FALSE)
+
+beep(1)
+```
+
+
+```{r}
+AIC(adult_cheek_emo2)
+
+AIC(adult_cheek_emo_bin2)
+
+AIC(adult_cheek_emo_bin_interaction2)
+```
+
+```{r}
+anova(adult_cheek_emo2, adult_cheek_emo_bin2)
+```
+
+
+```{r}
+anova(adult_cheek_emo_bin2, adult_cheek_emo_bin_interaction2)
+```
+
+
+#BEST FIT
+##model with main effects of emotion and bin and slope for emotion provides the best fit 
+
+```{r}
+adult_tidy_cheek2 <- tidy(adult_cheek_emo_bin2)
+```
+
+```{r}
+anova(adult_cheek_emo_bin2)
+```
+```{r}
+summary(adult_cheek_emo_bin2)
+```
+
+
+#tidying model output 
+
+```{r}
+terms <- c("intercept", "happy vs. angry", "bin1 vs. bin2", "bin2 vs. bin3", "bin3 vs. bin4", "bin4 vs. bin5", "bin5 vs. bin6")
+
+adult_tidier_cheek2 <- adult_tidy_cheek2 %>%
+  filter(effect == "fixed") %>%
+  select(-group)
+
+
+adult_tidier_cheek2 <-  adult_tidier_cheek2 %>%
+  mutate(niceterms = c("intercepts", "happy vs. angry", "bin1 vs. bin2", "bin2 vs. bin3", "bin3 vs. bin4", "bin4 vs. bin5", "bin5 vs. bin6", "emotion x bin1-2", "emotion x bin2-3", "emotion x bin3-4", "emotion x bin4-5", "emotion x bin5-6"))
+```
+
+#Really nice table 
+```{r}
+really_nice_table <- dust(adult_cheek_emo_bin2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+#ALL_EMO_CHILD
+
+```{r}
+child_cheek <- df %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(child_cheek)
+```
+
+
+#transform to correct normality
+
+```{r}
+child_cheek <- child_cheek %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion and slope for emotion 
+```{r}
+child_cheek_emo4 <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = child_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#just main effect of emotion and bin, and slope for emotion 
+```{r}
+child_cheek_emo_bin4 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = child_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin and emotion*bin, and slope for emotion (model failed to converge)
+
+```{r}
+child_cheek_emo_bin_interaction4 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = child_cheek, REML = FALSE)
+
+beep(1)
+```
+
+
+#test for best fit 
+
+```{r}
+AIC(child_cheek_emo4)
+
+AIC(child_cheek_emo_bin4)
+
+AIC(child_cheek_emo_bin_interaction4)
+```
+
+#anova
+```{r}
+anova(child_cheek_emo4, child_cheek_emo_bin4)
+```
+
+```{r}
+anova(child_cheek_emo_bin4, child_cheek_emo_bin_interaction4)
+```
+
+#BEST FIT
+##the model that provides the best fit for the data is one with a main effect of emotion and bin and a slope for emotion 
+
+```{r}
+child_tidy_cheek4 <- tidy(child_cheek_emo_bin4)
+```
+
+```{r}
+summary(child_cheek_emo_bin4)
+```
+```{r}
+anova(child_cheek_emo_bin4)
+```
+
+
+#really nice table 
+
+```{r}
+really_nice_table <- dust(child_cheek_emo_bin4) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+
+#ALL_EMO_ADULT
+
+```{r}
+adult_cheek <- df %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, trial, bin)
+
+glimpse(adult_cheek)
+```
+
+#transform to correct normality
+
+```{r}
+adult_cheek <- adult_cheek %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+##Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then bin*emotion
+
+###just main effect of emotion and slope for emotion (failed to converge)
+```{r}
+adult_cheek_emo4 <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = adult_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#just main effect of emotion and bin, and slope for emotion (failed to converge)
+```{r}
+adult_cheek_emo_bin4 <- lmer(log_modulus ~ emotion + bin + (1 + emotion|pp_no), data = adult_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#main effect of emotion and bin and emotion*bin, and slope for emotion 
+
+```{r}
+adult_cheek_emo_bin_interaction4 <- lmer(log_modulus ~ emotion + bin + emotion*bin + (1 + emotion|pp_no), data = adult_cheek, REML = FALSE)
+
+beep(1)
+```
+
+```{r}
+AIC(adult_cheek_emo4)
+AIC(adult_cheek_emo_bin4)
+AIC(adult_cheek_emo_bin_interaction4)
+```
+
+
+#BEST FIT
+
+##the only model that converged was the one with a main effect of emotion and bin and emotion*bin interaction, and slope for emotion 
+
+```{r}
+adult_tidy_cheek4 <- tidy(adult_cheek_emo_bin_interaction4)
+```
+
+```{r}
+summary(adult_cheek_emo_bin_interaction4)
+```
+
+```{r}
+anova(adult_cheek_emo_bin_interaction4)
+```
+
+
+#really nice table 
+
+```{r}
+really_nice_table <- dust(adult_cheek_emo_bin_interaction4) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+really_nice_table
+```
+
+
+
+
+
+
+

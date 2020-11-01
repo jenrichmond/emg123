@@ -1,0 +1,480 @@
+---
+title: "8a_adultchild_combined"
+output: html_document
+---
+
+#load packages
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+```
+
+#read in data 
+```{r}
+df <- read_csv(here("rileyraw_data", "adult_child_combined", "zdiff_binscreened.csv"))
+
+df$emotion <- as.factor(df$emotion)
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+```
+happy-angry 
+
+CHEEK
+
+#Make df with just happy/angry face for cheek
+
+```{r}
+HA_cheek <- df %>%
+  filter(emotion %in% c("happy", "angry")) %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, emotion, model, trial, bin)
+
+glimpse(HA_cheek)
+```
+
+#model 1 (Intercepts Only)
+
+##This model predicts zdiff from fixed effects of emotion (happy, angry), bin (1-10), and emotion x bin interaction. It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). This model doesn’t include slopes (yet).
+
+```{r}
+lm_model_cheek <- lmer(zdiff ~ emotion + bin + model + emotion*bin*model + (1|pp_no) + (1|trial), data = HA_cheek, REML = FALSE)
+```
+
+#test cheek model assumptions
+
+##plot residuals + qqplot
+```{r}
+#check homogeneity of variance assumption
+
+plot(lm_model_cheek)
+```
+
+
+```{r}
+#check normality
+
+qqnorm(resid(lm_model_cheek))
+qqline(resid(lm_model_cheek))
+```
+#transform to correct normality
+
+```{r}
+HA_cheek <- HA_cheek %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+#run new model
+```{r}
+lm_model_cheek_1 <- lmer(log_modulus ~ emotion + bin + model + emotion*bin + emotion*model + model*bin + emotion*bin*model + (1|pp_no), data = HA_cheek, REML = FALSE)
+```
+
+#Test assumptions again
+
+```{r}
+#check homogeneity of variance assumption
+
+plot(lm_model_cheek_1)
+```
+#check normality
+```{r}
+qqnorm(resid(lm_model_cheek_1))
+qqline(resid(lm_model_cheek_1))
+```
+
+#use anova to estimate effects 
+```{r}
+
+aov_output <- anova(lm_model_cheek_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+```
+
+#use summary to get coefficients 
+```{r}
+summary(lm_model_cheek_1)
+```
+#use tidy to get df
+```{r}
+tidy_cheek1 <- tidy(lm_model_cheek_1)
+```
+
+```{r}
+beep(1)
+```
+
+#Model 2 (slopes for emotion)
+
+##run model
+
+```{r}
+lm_model_cheek_2 <- lmer(log_modulus ~ emotion + bin + model + emotion*bin + emotion*model + model*bin + emotion:bin:model + (1 + emotion|pp_no), data = HA_cheek, REML = FALSE)
+```
+
+#get anova/summary
+
+```{r}
+aov_output2 <- anova(lm_model_cheek_2)
+```
+
+```{r}
+summary(lm_model_cheek_2)
+```
+
+#use tidy to get df
+
+```{r}
+tidy_cheek2 <- tidy(lm_model_cheek_2)
+```
+
+#Check fit
+AIC
+lower than intercepts only model
+
+```{r}
+AIC(lm_model_cheek_1)
+```
+
+```{r}
+AIC(lm_model_cheek_2)
+```
+#likelohood ratio test
+##use anova to test id there is difference in fit 
+
+```{r}
+anova(lm_model_cheek_1, lm_model_cheek_2)
+```
+
+model 2 is better than model 1 - model with random slops for effect of emotion provides better fit than model with intercepts for participants only 
+
+```{r}
+beep(2)
+```
+
+#model 3 (slopes for emotion and model)
+
+##run model
+```{r}
+
+lm_model_cheek_3 <- lmer(log_modulus ~ emotion + bin + model + emotion*bin + emotion*model + model*bin + emotion:bin:model + (1 + model + emotion|pp_no), data = HA_cheek, REML = FALSE)
+
+```
+
+#get anova/summary
+
+```{r}
+aov_output3 <- anova(lm_model_cheek_3)
+
+summary(lm_model_cheek_3)
+```
+
+```{r}
+tidy_cheek3 <- tidy(lm_model_cheek_3)
+```
+
+Check fit
+
+#AIC
+#lower than intercepts only model
+```{r}
+AIC(lm_model_cheek_2)
+```
+
+```{r}
+AIC(lm_model_cheek_3)
+```
+#likelihood ratio test 
+
+#use anova to test if there is a difference in fit 
+```{r}
+anova(lm_model_cheek_2, lm_model_cheek_3)
+```
+
+Model with random slopes for effect of emotion and bin provides better fit than model with intercepts and slopes for emotion alone.
+
+#model 4 - model with slopes for emotion and model and emotion by model interaction
+
+#run model
+```{r}
+
+lm_model_cheek_4 <- lmer(log_modulus ~ emotion + bin + model + emotion*bin + emotion*model + model*bin + emotion:bin:model + (1 + emotion + model + emotion*model|pp_no), data = HA_cheek, REML = FALSE)
+```
+
+#get anova/summary
+```{r}
+aov_output4 <- anova(lm_model_cheek_4)
+
+summary(lm_model_cheek_4)
+```
+
+```{r}
+tidy_cheek4 <- tidy(lm_model_cheek_4)
+```
+
+
+#check fit
+
+```{r}
+AIC(lm_model_cheek_3)
+```
+
+```{r}
+AIC(lm_model_cheek_4)
+```
+
+```{r}
+anova(lm_model_cheek_3, lm_model_cheek_4)
+```
+
+```{r}
+lm_model_cheek_5 <- lmer(log_modulus ~ emotion + bin + model + emotion*bin + emotion*model + model*bin + (1 + emotion + model + bin|pp_no), data = HA_cheek, REML = FALSE)
+```
+
+
+#Likelihood Ratio Tests
+
+##what would the model fit look like if we added main effects of emotion, then bin and then model, then the interaction 
+
+###just main effect of emotion and slope for emotion 
+
+```{r}
+cheek_emo <- lmer(log_modulus ~ emotion + (1 + emotion|pp_no), data = HA_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#this model includes main effects of emotion and model (and intercepts for participants, slopes for both emotion and model)
+```{r}
+
+cheek_emo_model <- lmer(log_modulus ~ emotion + model + (1 + emotion + model|pp_no), data = HA_cheek, REML = FALSE)
+
+beep(1)
+
+```
+
+#this model includes main effects of emotion and model and bin (and intercepts for participants, slopes for the main effects of emotion and model)
+
+```{r}
+
+cheek_emo_model_bin <- lmer(log_modulus ~ emotion + model + bin + (1 + emotion + model |pp_no), data = HA_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#this model includes main effects of emotion, model and bin and two-way interaction for emotion*model (and intercepts for participants, slopes for the main effects of emotion and model and emotion*model interaction)
+
+```{r}
+
+cheek_emo_model_bin_interaction <- lmer(log_modulus ~ emotion + model + bin + emotion*model + (1 + emotion + model + emotion*model|pp_no), data = HA_cheek, REML = FALSE)
+
+beep(1)
+
+```
+
+
+#this model includes main effects of emotion, model and bin and two-way interaction for emotion*model and bin*emotion (and intercepts for participants, slopes for the main effects of emotion and model and emotion*model interaction)
+
+```{r}
+cheek_emo_model_bin_interaction2 <- lmer(log_modulus ~ emotion + model + bin + emotion*model + bin*emotion + (1 + emotion + model + emotion*model|pp_no), data = HA_cheek, REML = FALSE)
+
+beep(1)
+```
+
+
+#this model includes main effects of emotion, model and bin and two-way interaction for emotion*model and bin*emotion and bin*model (and intercepts for participants, slopes for the main effects of emotion and model and emotion*model interaction)
+
+```{r}
+cheek_emo_model_bin_interaction3 <- lmer(log_modulus ~ emotion + model + bin + emotion*model + bin*emotion + bin*model + (1 + emotion + model + emotion*model|pp_no), data = HA_cheek, REML = FALSE)
+
+beep(1)
+```
+
+#this model includes main effects of emotion, model and bin and two-way interaction for emotion*model and bin*emotion and bin*model and 3-way interaction of bin*emotion*model (and intercepts for participants, slopes for the main effects of emotion and model and emotion*model interaction)
+
+```{r}
+cheek_emo_model_bin_interaction4 <- lmer(log_modulus ~ emotion + model + bin + emotion*model + bin*emotion + bin*model + bin*model*emotion + (1 + emotion + model + emotion*model|pp_no), data = HA_cheek, REML = FALSE)
+
+beep(1)
+```
+
+
+```{r}
+anova(cheek_emo, cheek_emo_model)
+```
+
+```{r}
+anova(cheek_emo_model, cheek_emo_model_bin_interaction)
+```
+
+
+```{r}
+anova(cheek_emo_model_bin_interaction, cheek_emo_model_bin_interaction2)
+```
+
+
+```{r}
+anova(cheek_emo_model_bin_interaction2, cheek_emo_model_bin_interaction3)
+```
+
+
+```{r}
+tidy_cheek5 <- tidy(cheek_emo_model_bin_interaction2)
+```
+
+#cheek_emo_model_bin_interaction2 is the best fit for the data 
+
+tidying model output
+
+```{r}
+
+terms <- c("intercept", "happy vs. angry", "bin1 vs bin2", "bin2 vs. bin3", "bin3 vs. bin4", "bin4 vs. bin5", "bin5 vs. bin6")
+
+tidier_cheek5 <- tidy_cheek5 %>%
+  filter(effect == "fixed") %>%
+  select(~group)
+
+
+tidier_cheek5 <- tidier_cheek5 <- c("intercept", "happy vs. angry", "bin1 vs bin2", "bin2 vs. bin3", "bin3 vs. bin4", "bin4 vs. bin5", "bin5 vs. bin6", "emotion x bin1-2", "emotion x bin2-3", "emotion x bin3-4", "emotion x bin4-5", "emotion x bin5-6")
+```
+
+
+
+
+#pixiedust
+```{r}
+library(pixiedust)
+
+nice_table_cheek <- dust(tidier_cheek5) %>%
+  sprinkle_print_method("html")
+nice_table_cheek
+```
+
+```{r}
+really_nice_table_cheek <- dust(tidier_cheek5) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term",
+                    estimate = "Estimate",
+                    std.error = "SE",
+                    statistic = "Statistic",
+                    p.value = "P-value") %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+  sprinkle_print_method("html")
+
+really_nice_table_cheek
+```
+
+#now do the same for brow 
+
+happy-angry 
+
+BROW
+
+#Make df with just happy/angry face for Brow
+
+```{r}
+HA_brow <- df %>%
+  filter(emotion %in% c("happy", "angry")) %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, emotion, model, trial, bin)
+
+glimpse(HA_brow)
+```
+
+```{r}
+lm_model_brow <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = HA_brow, REML = FALSE)
+```
+
+rest cheek model assumptions
+
+#plot residuals + qqplot
+```{r}
+#check homogeneity of variance assumption
+
+plot(lm_model_brow)
+```
+
+```{r}
+#check normality
+
+qqnorm(resid(lm_model_brow))
+qqline(resid(lm_model_brow))
+```
+#transform to correct normality
+
+```{r}
+HA_brow <- HA_brow %>%
+  mutate(log_modulus = sign(zdiff) + log(1+abs(zdiff)))
+```
+
+#run new model
+```{r}
+lm_model_brow_logmod <- lmer(log_modulus ~ emotion + bin + model + emotion*bin*model + (1|pp_no), data = HA_brow, REML = FALSE)
+```
+
+#Test assumptions again
+
+```{r}
+#check homogeneity of variance assumption
+
+plot(lm_model_brow_logmod)
+```
+#check normality
+```{r}
+qqnorm(resid(lm_model_brow_logmod))
+qqline(resid(lm_model_brow_logmod))
+```
+
+#use anova to estimate effects 
+```{r}
+anova(lm_model_brow_logmod)
+```
+#use summary to get coefficients 
+```{r}
+summary(lm_model_brow_logmod)
+```
+#use tidy to get df
+```{r}
+tidy_brow <- tidy(lm_model_brow_logmod)
+```
+
+#pixiedust
+```{r}
+library(pixiedust)
+
+nice_table_brow <- dust(lm_model_brow_logmod) %>%
+  sprinkle_print_method("html")
+nice_table_brow
+```
+
+```{r}
+really_nice_table_brow <- dust(lm_model_brow_logmod) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term",
+                    estimate = "Estimate",
+                    std.error = "SE",
+                    statistic = "Statistic",
+                    p.value = "P-value") %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+  sprinkle_print_method("html")
+
+really_nice_table_brow
+
+```
+
+
+
+
+
+
+
+
+

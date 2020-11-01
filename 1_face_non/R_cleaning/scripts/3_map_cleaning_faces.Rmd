@@ -1,0 +1,121 @@
+---
+title: "add filename"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# load packages
+```{r}
+library(readxl)
+library(tidyverse)
+library(here)
+library(janitor)
+
+```
+
+# call functions
+```{r}
+
+source(here("R_cleaning", "cleanwrite_emg_functions.R"))
+```
+
+SOlution from https://stackoverflow.com/questions/47540471/load-multiple-excel-files-and-name-object-after-a-file-name
+
+# set up path and files list
+
+```{r}
+filepath <- here("R_cleaning", "data", "raw_data", "faces")
+
+file_list <- list.files(path = filepath, pattern='*.xlsx')
+
+
+```
+
+# Option 1. map: read, clean, write to csv
+
+This option reads the dirty xlsx files into a list, runs cleanwrite_emg on that list, which returns exported clean csv files and a list with clean data in each list item. How...?
+
+the map function takes a list (in this case the list of files) and runs a function (in this case read_excel + mutate(filename)) across all of them. 
+
+map will return a list, in this case a list containing each of the read in excel files + a filename column as a separate item. 
+
+purrr loves lists, once all the files are read in as list items, can use map again (or maybe even map_df- which returns a dataframe- see option 2) to run cleanwrite_emg across all items in the list?
+
+#### A. map read_excel
+
+updated 21/5/2020 advice from Jenny Bryan, option 1 https://jenrichmond.github.io/map_excel_reprex/
+```{r message=FALSE, warning=FALSE}
+list_raw_emg <- file_list %>% 
+  map(~ read_excel(path = here("R_cleaning", "data", "raw_data", "faces", .x), range = "A2:AE13")  %>%
+        mutate("file_name" = .x))
+
+```
+
+```{r}
+# get first item of list for testing
+rawemg1 <- list_raw_emg[[1]]
+```
+
+
+#### B. map cleanwrite_emg
+Run cleanwrite_emg on list of files using map, returns a list. Each item in the list is a cleaned file AND each is written to csv in the clean_data folder. 
+
+```{r}
+list_cleanwrite_emg <- list_raw_emg %>%
+  map(~ cleanwrite_emg(.x))
+```
+
+
+#### C. Check the list items 
+
+did you get what you want? look at the 1st item from the cleanemg emglist. There should also be clean csv files in your folder. 
+```{r}
+cleanemg1 <- list_cleanwrite_emg[[1]]
+```
+
+YES!
+
+# Option 2. map_df: read,  clean, bind to df
+
+map_df is like map except that rather than returning a list, it returns a dataframe. What if we use map_df to run clean_emg (not the write_csv version), would that bind everything into a df?? If its going to bind everything together, maybe we perhaps dont need to write individual clean files to csv, and them read them back in in order to do next step?
+
+
+#### A. map read_excel
+
+```{r message=FALSE, warning=FALSE}
+list_raw_emg <- file_list %>% 
+  map(~ read_excel(path = here("R_cleaning", "data", "raw_data", "faces", .x), range = "A2:AE13")  %>%
+        mutate("file_name" = .x))
+
+# get first item of list for testing
+emg1 <- list_raw_emg[[1]]
+
+```
+
+#### B. map_df clean_emg
+```{r}
+df_clean_emg <- list_raw_emg %>%
+  map_df(~ clean_emg(.x))
+
+```
+
+## bind pp604_429 with full faces clean data set
+NOTe: run cleanup RAW eg pp604_429 before this step!
+
+```{r}
+final_clean_faces <- bind_rows(df_clean_emg, test_long)
+
+final_clean_faces$rms <- as.numeric(final_clean_faces$rms)
+final_clean_faces$bin <- as.factor(final_clean_faces$bin)
+final_clean_faces$trial <- as.factor(final_clean_faces$trial)
+final_clean_faces$muscle <- as.factor(final_clean_faces$muscle)
+
+write_csv(final_clean_faces, here("R_cleaning", "data", "clean_data", "faces_clean.csv"))
+
+
+```
+

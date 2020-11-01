@@ -1,0 +1,249 @@
+---
+title: "8_analysing"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The models in this RMD predict zdiff separately for 
+
+- adultface_cheek
+- childface_cheek
+- adultface_brow
+- childface_brow
+
+Each model includes fixed effects of emotion (happy, angry, sad, fear) and bin and emotion * bin interaction, along with random intercepts for particpant and trial. 
+
+The assumptions for each model are checked, but NOT corrected. 
+These models also do not include slopes for fixed effects. 
+
+# load packages
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(beepr)
+```
+
+# read in data
+
+```{r}
+df <- read_csv(here::here("data", "adult_child_combined", "zdiff_binscreened.csv"))
+```
+
+#fix data types, all chars to factors
+
+```{r}
+
+
+df <- df %>% mutate_if(is.character,as.factor)
+
+# fix bin levels
+
+
+df$bin <- fct_relevel(df$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+df$emotion <- as_factor(df$emotion)
+
+levels(df$bin)  
+levels(df$emotion)    
+
+glimpse(df)
+```
+
+# CHEEK all emotion adult 
+
+
+## make df
+```{r}
+adult_cheek <- df %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+
+glimpse(adult_cheek)
+
+levels(adult_cheek$emotion)
+
+```
+
+
+
+evidence of mimicry to happy would be evidenced by greater cheek activity over time (bin) for happy than angry
+
+looking to predict zdiff from emotion (happy, angry), and bin (1-10) and their interaction, allowing intercepts to vary for participant and trial 
+
+## fit model
+```{r}
+adultlm_model_cheek <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = adult_cheek, REML = FALSE)
+
+beep(1)
+```
+
+## use ANOVA to estimate effects 
+```{r}
+anova(adultlm_model_cheek)
+
+```
+
+## use summary to get coefficients 
+```{r}
+summary(adultlm_model_cheek)
+
+```
+
+## test cheek model assumptions
+
+### plot residuals 
+```{r}
+plot(adultlm_model_cheek)
+
+```
+
+### qqplot 
+```{r}
+qqnorm(resid(adultlm_model_cheek))
+qqline(resid(adultlm_model_cheek))
+```
+
+*YIKES!* this qq plot does not look good!!
+
+# CHEEK all emotion child
+
+## make df
+```{r}
+child_cheek <- df %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+
+glimpse(child_cheek)
+
+
+
+levels(child_cheek$emotion)
+```
+
+## fit model
+```{r}
+childlm_model_cheek <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = child_cheek, REML = FALSE)
+
+beep(2)
+```
+
+## use ANOVA to estimate effects
+```{r}
+anova(childlm_model_cheek)
+```
+
+## use summary to get coefficients
+```{r}
+summary(childlm_model_cheek)
+```
+
+## test model assumptions
+
+### plot residuals
+```{r}
+plot(childlm_model_cheek)
+```
+
+### qqplot
+```{r}
+qqnorm(resid(childlm_model_cheek))
+qqline(resid(childlm_model_cheek))
+```
+
+# BROW all emotion adult
+
+## make df
+```{r}
+adult_brow <- df %>%
+  filter(muscle == "brow") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+
+glimpse(adult_brow)
+
+levels(adult_brow$emotion)
+```
+
+## fit model
+```{r}
+adultlm_model_brow <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = adult_brow, REML = FALSE)
+
+beep(3)
+```
+
+## use ANOVA to esitamte effects
+```{r}
+anova(adultlm_model_brow)
+```
+
+## use summary to get coefficients
+```{r}
+summary(adultlm_model_brow)
+```
+
+## check assumptions
+
+### plot residuals
+```{r}
+plot(adultlm_model_brow)
+```
+
+### qqplot
+```{r}
+qqnorm(resid(adultlm_model_brow))
+qqline(resid(adultlm_model_brow))
+```
+
+# BROW all emotion child 
+
+## make df
+```{r}
+child_brow <- df %>%
+  filter(muscle == "brow") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+
+glimpse(child_brow)
+
+levels(child_brow$emotion)
+```
+
+## fit model
+```{r}
+childlm_model_brow <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = child_brow, REML = FALSE)
+
+beep(4)
+```
+
+## ANOVA to estimate effects
+```{r}
+anova(childlm_model_brow)
+```
+
+## use summary to get coefficients
+```{r}
+summary(childlm_model_brow)
+```
+
+## check assumptions
+
+### plot residuals
+```{r}
+plot(childlm_model_brow)
+```
+
+### qqplot
+```{r}
+qqnorm(resid(childlm_model_brow))
+qqline(resid(childlm_model_brow))
+```
+

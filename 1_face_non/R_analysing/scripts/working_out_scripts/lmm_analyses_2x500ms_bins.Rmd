@@ -1,0 +1,212 @@
+---
+title: "lmm_analyses_2x500ms_bins"
+author: "Sahar Fatima"
+date: "14/09/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## load packages 
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+library(effsize)
+library(lsmeans)
+library(rockchalk)
+library(papaja)
+```
+
+## read in data 
+
+```{r message=FALSE, warning=FALSE}
+face <- read_csv(here("R_analysing", "data", "9_face_zdiff_screened.csv")) %>%
+  mutate(condition = recode(condition, "429" = "angry","673" = "happy", .default = "NA"))
+
+non <- read_csv(here("R_analysing", "data", "9_non_zdiff_screened.csv")) %>%
+  mutate(condition = recode(condition, "913" = "negative","285" = "positive", .default = "NA"))
+```
+
+## fix data types 
+
+```{r}
+face$condition <- as.factor(face$condition)
+
+face <- face %>% 
+  mutate_if(is.character,as.factor) 
+
+levels(face$bin)
+
+face$bin <- fct_relevel(face$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+non$condition <- as.factor(non$condition)
+
+non <- non %>% 
+  mutate_if(is.character,as.factor)
+
+non$bin <- fct_relevel(non$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+```
+
+## splitting data into 2 500ms bins (rather than 10 100ms bins)
+Going to try to use combine levels: https://rdrr.io/cran/rockchalk/man/combineLevels.html from rockchalk package
+^ couldn't figure it out - just going to use recode?
+```{r}
+face <- face %>%
+  mutate(bin = recode(bin, "diff_bin1" = "bin1", "diff_bin2" = "bin1", "diff_bin3" = "bin1", "diff_bin4" = "bin1", "diff_bin5" = "bin1", "diff_bin6" = "bin2", "diff_bin7" = "bin2", "diff_bin8" = "bin2", "diff_bin9" = "bin2", "diff_bin10" = "bin2"))
+
+levels(face$bin)
+
+non <- non %>%
+  mutate(bin = recode(bin, "diff_bin1" = "bin1", "diff_bin2" = "bin1", "diff_bin3" = "bin1", "diff_bin4" = "bin1", "diff_bin5" = "bin1", "diff_bin6" = "bin2", "diff_bin7" = "bin2", "diff_bin8" = "bin2", "diff_bin9" = "bin2", "diff_bin10" = "bin2"))
+
+glimpse(face)
+```
+
+## make cheek and brow data frames
+```{r}
+#face_cheek 
+face_cheek <- face %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#face_brow
+face_brow <- face %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#non_cheek 
+non_cheek <- non %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#non_brow
+non_brow <- non %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, condition, trial, bin)
+
+```
+
+# FACE CHEEK
+## plot cheek responding to facial stimuli 
+
+```{r}
+face_cheek_plot <- face_cheek %>%
+  filter(muscle == "cheek") %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr), 
+                size=.5,    # Thinner lines
+                    width=.2) + 
+  theme_minimal()
+
+face_cheek_plot
+```
+
+## do lmm face_cheek
+```{r}
+face_cheek <- face_cheek %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+lm_face_cheek <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition|pp_no), data = face_cheek, REML = FALSE)
+
+anova(lm_face_cheek)
+summary(lm_face_cheek)
+```
+
+# FACE BROW
+## plot brow responding to faces
+
+```{r}
+face_brow_plot <- face_brow %>%
+  filter(muscle == "brow") %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr), 
+                size=.5,    # Thinner lines
+                    width=.2) + 
+  theme_apa(box = TRUE)
+
+face_brow_plot
+```
+
+## lmm_face_brow
+```{r}
+face_brow <- face_brow %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+lm_face_brow <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition + bin|pp_no), data = face_brow, REML = FALSE)
+
+
+anova(lm_face_brow)
+
+summary(lm_face_brow)
+
+```
+
+# NON-FACE BROW
+```{r}
+non_brow <- non_brow %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+lm_non_brow <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition|pp_no), data = non_brow, REML = FALSE)
+
+anova(lm_non_brow)
+```
+
+# NON-FACE CHEEK
+
+## plot 
+```{r}
+non_cheek %>%
+  filter(muscle == "cheek") %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr), 
+                size=.5,    # Thinner lines
+                    width=.2) + 
+  theme_apa(box = TRUE)
+```
+
+
+## lmm_non_cheek
+```{r}
+non_cheek <- non_cheek %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+lm_non_cheek <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition|pp_no), data = non_cheek, REML = FALSE)
+
+anova(lm_non_cheek)
+```
+

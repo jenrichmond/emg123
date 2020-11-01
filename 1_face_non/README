@@ -1,0 +1,31 @@
+Data Steps: 
+
+Clean raw data by: 
+STEP 1. Reading in cleaning function codes: R_cleaning/cleanwrite_emg_functions
+
+STEP 2. cleaning pp604_429: Running R_cleaning/scripts/cleanup RAW emg pp604_429.Rmd
+
+STEP 3. cleaning face data, binding with pp604_429 and writing clean csv: Running R_cleaning/scripts/map_cleaning_faces.Rmd
+
+STEP 4. cleaning face data, and writing clean csv's: Running R_cleaning/scripts/map_cleaning_non-faces.Rmd
+
+Start analysing baseline data:
+STEP 5. Use R_analysing/scripts/clean_data_BL_scores.Rmd to read in the clean data, check missing values 
+
+STEP 6. Use R_analysing/scripts/baseline_outlier.Rmd to check for baseline scores that are more than 1.5 standard deviations above the mean, create a new outlier variable and then plot the outliers for each condition. This rmarkdown also has plots of pp RMS values that are pre high but aren't outliers. There are a total of 4 plots one for face (happy and angry) and non-face (positive and negative). 
+
+STEP 7. Use R_analysing/scripts/binding_baseline_main.Rmd read in baseline outlier face and non-face dataframes, select variables, bind with original data frames and arranging according to pp_no, trial and bin. Filling in outlier variable with true or false depending on whether baseline was an outlier or not. Finally, this script makes new data frames: face and non-face data that excluding all baseline outliers, and face and non-face df's with all outliers. 
+
+Calculating z-scores: 
+STEP 8. Use R_analysing/scripts/calculating_zscores.Rmd to calculate z-score differences and plot them to get a feel of how the data looks like. Also will be following Jenny's steps: https://rpubs.com/jenrichmond/emgz. 
+
+STEP 9. R_analysing/scripts/bin_outliers.Rmd to read in new data frames without BL outliers, calculated mean and SD (grouping by - pp_no, condition, trial and muscle) and make a new outlier variable. rreplace outlier rms values with N/A, recombine face and non-face data frames with no outliers with BL data frame with no outliers and write_csv's. 
+
+STEP 10. R_analysing/scripts/plotting.Rmd - plotting Mean z-score differences in rms scores for cheek and brow responding to facial and non-facial stimuli. 
+
+STEP 11. 
+  Part a. R_analysing/scripts/lmm_baseline_analysis - ensure that there are no differences in baseline cheek/brow responding to face/non-face stimuli to allow valid comparison of muscle responding between happy and angry faces or positively- and negatively-valenced stimuli. 
+  Part b. R_analysing/scripts/lmm_face_analyses - build LMM models for cheek and brow responding to facial stimuli. LMM models begin with a global model and were simplified when failed to converge. Also, used log-modulus transform because normality assumptions were violated. [Note: Cheek model 3 and Brow Model 3 - were the best fit models]
+  Part c. R_analysing/scripts/lmm_non_face_analyses - build LMM models for cheek and brow responding to NON-facial stimuli. (Same as Step 11, Part 2) [Note: Cheek model 3 and Brow Model 3 - were the best fit models]
+
+STEP 12. Going to clean and analyse facial EMG data beyond the first 1000ms. All data and scripts can be found in the extended_cleaning_analysis folder. Repeat above steps for analyses beyond 1000ms. Refer to extended_cleaning_analysis folder for README_extended_analyses - contains more detail. 

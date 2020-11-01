@@ -1,0 +1,302 @@
+---
+title: "11.3 lmm_non_face_analyses"
+author: "Sahar Fatima"
+date: "26/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Objective:
+This script contains LMMs for cheek and brow responding to non-facial stimuli. 
+
+I will begin with the maximal global model (model that  based on theoretical research - i.e.,  contains variables related to the matter at hand) for cheek and brow responding separately, and if it doesn't converge will simplify. 
+
+## load packages 
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+library(apaTables)
+```
+
+## read in data 
+
+```{r message=FALSE, warning=FALSE}
+non <- read_csv(here("R_analysing", "data", "9_non_zdiff_screened.csv")) %>%
+  mutate(condition = recode(condition, "913" = "negative","285" = "positive", .default = "NA"))
+```
+
+## fix data types 
+
+```{r}
+non$condition <- as.factor(non$condition)
+
+non <- non %>% 
+  mutate_if(is.character,as.factor)
+
+non$bin <- fct_relevel(non$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(non$bin)
+```
+
+## make cheek and brow data frames
+```{r}
+#non_cheek 
+non_cheek <- non %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#non_brow
+non_brow <- non %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, condition, trial, bin)
+```
+
+
+# CHEEK 
+
+### Cheek MODEL 1 (including all main effects and interactions as fixed effects and random slopes)
+This model predicts Zdiff from fixed effects of condition (happy, angry) and bin (1-10), and their interactions (condition x bin).
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition, bin and their interaction (condition*bin). 
+
+```{r}
+# did not converge 
+
+# lm_non_cheek_1 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin + condition*bin|pp_no), data = non_cheek, REML = FALSE) 
+```
+
+#### Model 1 take home 
+Cheek Model 1 did not converge - so going to simplify by removing random slope for the interaction. 
+
+### Cheek MODEL 2 (random slopes for condition and bin)
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition and bin. 
+
+
+```{r}
+# converges! took some time (15 mins)
+
+# lm_non_cheek_2 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin|pp_no), data = non_cheek, REML = FALSE)
+```
+
+##### check if normality assumptions are met 
+``` {r}
+# plot(lm_non_cheek_2)
+
+# qqnorm(resid(lm_non_cheek_2))
+# qqline(resid(lm_non_cheek_2)) # spoiler alert they aren't
+
+```
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative is to use a log modulus transform. This transformation log transforms the absolute value (without the -ve) and then puts the sign back on). 
+``` {r}
+non_cheek <- non_cheek %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run model again
+
+# lm_non_cheek_2 <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition + bin|pp_no), data = non_cheek, REML = FALSE)
+```
+
+#### test assumptions again 
+
+```{r}
+# plot(lm_non_cheek_2)
+
+# qqnorm(resid(lm_non_cheek_2))
+# qqline(resid(lm_non_cheek_2))
+
+```
+
+### get anova() and summary
+```{r}
+# use anova to estimate effectsca
+# aov_non_cheek_2 <- anova(lm_non_cheek_2) %>%
+  # rownames_to_column() %>%
+  # rename(term = rowname)
+
+# use summary to get coefficients
+# summary(lm_non_cheek_2)
+```
+
+
+#### model 2 take home 
+Model 2 converges - from anova output netierh the main bin or condition effects are significant. 
+
+However, from the summary output we can see that there is a significant difference from baseline (p<0.01) in cheek responding to negatively- and positively-valenced stimuli [I think?].
+
+Going to compare with simpler model to compare fit (with slope for condition only)
+
+### Cheek MODEL 3 (random slopes for condition)
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active nons than others) and random slopes for condition.
+
+```{r}
+# converges! 
+lm_non_cheek_3 <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition|pp_no), data = non_cheek, REML = FALSE)
+```
+
+#### compare fit
+compare fit with model 2 (random slopes for condition and bin)
+```{r}
+# AIC(lm_non_cheek_2, lm_non_cheek_3)
+```
+
+#### likelihood ratio test
+```{r}
+# anova(lm_non_cheek_2, lm_non_cheek_3)
+```
+
+#### get anova()/ summary
+```{r}
+# use anova to estimate effects
+aov_non_cheek_3 <- anova(lm_non_cheek_3) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+anova(lm_non_cheek_3)
+# use summary to get coefficients
+summary(lm_non_cheek_3)
+```
+#### plot 
+
+
+
+#### model 3 take home 
+so Model 3 converges - and is of better fit than Model 2. Main effect for bin is signficiant. 
+
+Main effect of bin is signficant - from summary table we can see that difference in cheek responding from baseline and bin 7 (p<0.05) in response to positively-valenced stimuli (from the the graph 8. calculating_zscores) - suggesting that cheek responding is increasing over time [??]
+
+From summary table, we can see that the difference between baseline cheek resopnding is significantly greater in response to positively- relative to negatively-valenced stimuli (from the the graph 8. calculating_zscores)
+
+
+Going to compare with simpler model just to compare fit. 
+
+### Cheek MODEL 4 (intercepts only)
+
+```{r}
+lm_non_cheek_4 <- lmer(log_modulus ~ condition + bin + condition*bin + (1|pp_no), data = non_cheek, REML = FALSE)
+```
+
+#### compare fit
+```{r}
+AIC(lm_non_cheek_3, lm_non_cheek_4)
+```
+#### model 4 take home 
+
+Model 3 is better fit than Model 4. 
+
+## Cheek TAKE HOME
+Model 3 with fixed effects of condition, bin and their interaction and slopes for condition has best fit. 
+
+Model 3 - main effect for bin is significant. and from summary table diffbin7 and conditionnegative are sig. refer to Modle 3 take home for comments. 
+
+# BROW
+
+### Brow MODEL 1 (including all main effects and interactions as fixed effects and random slopes)
+This model predicts Zdiff from fixed effects of condition (happy, angry) and bin (1-10), and their interactions (condition x bin).
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition, bin and their interaction (condition*bin). 
+
+```{r}
+# did not converge 
+
+# lm_non_brow_1 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin + condition*bin|pp_no), data = non_brow, REML = FALSE) 
+```
+
+#### Model 1 take home 
+Brow Model 1 did not converge - so going to simplify by removing random slope for the interaction. 
+
+### Brow MODEL 2 (random slopes for condition and bin)
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition and bin. 
+
+
+```{r}
+# failed to converge
+
+# lm_non_brow_2 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin|pp_no), data = non_brow, REML = FALSE)
+```
+
+##### check if normality assumptions are met 
+``` {r}
+# plot(lm_non_brow_2)
+
+# qqnorm(resid(lm_non_brow_2))
+# qqline(resid(lm_non_brow_2)) # spoiler alert they aren't
+
+```
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative is to use a log modulus transform. This transformation log transforms the absolute value (without the -ve) and then puts the sign back on). 
+``` {r}
+non_brow <- non_brow %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run model again
+
+# lm_non_brow_2 <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition + bin|pp_no), data = non_brow, REML = FALSE)
+```
+
+
+#### test assumptions again 
+Residuals are more evenly distributed than before; qq plot is better as well.
+
+```{r}
+# plot(lm_non_brow_2)
+
+# qqnorm(resid(lm_non_brow_2))
+# qqline(resid(lm_non_brow_2))
+
+```
+
+
+#### model 2 take home 
+Failed to converge 
+Going to compare with simpler model (with slopes for condition only)
+
+### Brow MODEL 3 (slopes for condition)
+
+```{r}
+lm_non_brow_3 <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition|pp_no), data = non_brow, REML = FALSE)
+```
+
+
+### get anova()/ summary
+```{r}
+aov_non_brow_3 <- anova(lm_non_brow_3) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+
+anova(lm_non_brow_3)
+summary(lm_non_brow_3)
+```
+
+#### model 3 take home
+Brow model 3 converges - neither main effects nor interaction are significant. 
+
+### Brow MODEL 4 (intercepts only)
+
+```{r}
+lm_non_brow_4 <- lmer(log_modulus ~ condition + bin + condition*bin + (1|pp_no), data = non_brow, REML = FALSE)
+```
+
+#### compare fit
+```{r}
+AIC(lm_non_brow_3, lm_non_brow_4)
+```
+#### model 4 take home 
+Model 3 is better fit than Model 4. 
+
+## Brow TAKE HOME
+Model 3 with fixed effects of condition, bin and their interaction, and slopes for condition has best fit. Neither main effects nor interaction are significant

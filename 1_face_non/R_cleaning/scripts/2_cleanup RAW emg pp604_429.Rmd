@@ -1,0 +1,119 @@
+---
+title: "cleanup raw EMG"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load packages
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(readxl)
+library(wesanderson)
+
+```
+
+#read in data
+This file is the data for 1 kid/1 condition. 
+```{r}
+test <- read_excel(here("R_cleaning", "data", "raw_data", "pp604_429 copy.xlsx")) %>%
+  mutate(file_name = "pp604_429.xlsx")
+```
+# cleaning
+1. get rid of everything below row 14
+2. get rid of blank columns between trials
+```{r}
+test_clean <- test[2:12,] %>%
+  remove_empty(which = "cols")
+```
+3. make the variable names meaningful (i.e bin, trial1_brow, trial1_cheek, trial2_brow, trial2_brow etc)
+```{r}
+test_clean <- test_clean %>%
+  rename(bin = 'Cmt Text', 
+         trial1_brow = RMS...2, 
+         trial1_cheek = RMS...3, 
+         trial2_brow = ...6,
+         trial2_cheek = ...7, 
+         trial3_brow = ...10, 
+         trial3_cheek = ...11, 
+         trial4_brow = ...14, 
+         trial4_cheek = ...15,
+         trial6_brow = ...22,
+         trial6_cheek = ...23, 
+         trial7_brow = ...26, 
+         trial7_cheek = ...27,
+         trial8_brow = ...30, 
+         trial8_cheek = ...31)
+```
+
+Make a new bin column using c(bin_0, bin_1, bin_3 etc), drop the old one and reorder columns to bring participant, condition, bin to the front. 
+```{r}
+test_bin <- test_clean %>%
+  mutate(bin = c("bin_0", 
+                 "bin_1", 
+                 "bin_2", 
+                 "bin_3", 
+                 "bin_4", 
+                 "bin_5", 
+                 "bin_6", 
+                 "bin_7", 
+                 "bin_8", 
+                 "bin_9", 
+                 "bin_10"))
+```
+Make data long (using names to both trial and muscle with sep = _).  Add new bin no column (0-10) to make it easy to arrange bins in order, then arrange by trial/bin no. 
+Convert rms to numeric, and all of the variables that are characters to factors. 
+```{r}
+
+test_bin <- test_bin %>%
+  mutate(bin_no = 0:10) %>%
+  select(file_name, bin, bin_no, contains("trial"))
+
+
+
+test_long <- test_bin %>%
+  pivot_longer(cols = 4:17, 
+               names_to = c("trial", "muscle"), 
+               names_sep = "_",
+               values_to = "rms") %>%
+  arrange(trial, bin_no) 
+
+```
+
+
+
+```{r}
+test_long$rms <- as.numeric(test_long$rms)
+test_long$bin <- as.factor(test_long$bin)
+test_long$trial <- as.factor(test_long$trial)
+test_long$muscle <- as.factor(test_long$muscle)
+
+write_csv(test_long, here("R_cleaning", "data", "clean_data", "faces"), 
+          path = "clean_pp604_429.csv")
+```
+
+
+# playing with plotting
+Plotting individual trial data from 1 participant is kinda silly, but just for fun...use geom_point + geom_line to plot bin number on x, rms values on y, make the dots colour by muscle and use facet_wrap to get separate plots for each trial. 
+
+```{r}
+pp481_plot <- test_long %>%
+  ggplot(mapping = aes(x = bin_no, y = rms, colour = muscle)) + 
+  geom_point() + 
+  geom_line() +
+  facet_wrap(facets = vars(trial)) + 
+  scale_x_discrete(limits = c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), 
+                   expand = c(0,0)) + 
+  theme_bw() + 
+  scale_colour_manual(values = wes_palette(n = 2, name = "GrandBudapest1"))
+
+print(pp481_plot)
+
+```
+
+
+

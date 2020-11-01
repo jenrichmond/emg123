@@ -1,0 +1,382 @@
+---
+title: "9_cheek_analysis"
+output: word_document
+date: "`r format(Sys.time(), '%a/%d/%b')`"
+---
+# load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+library(ggplot2) 
+library(knitr)
+
+knitr::opts_chunk$set(autodep = TRUE)
+```
+
+# read in data 
+```{r}
+df <- read_csv(here::here("data", "adult_child_combined", "zdiff_binscreened.csv"))
+```
+# fix data types
+
+# make a new emotion column and recode emotion variable 
+```{r}
+df$emotion <- as.factor(df$emotion)
+
+levels(df$emotion)
+
+df <- df %>%
+  mutate(emo = case_when(emotion == 121 ~ "Happy", 
+                              emotion == 323 ~ "Angry", 
+                              emotion == 424 ~ "Fear", 
+                              emotion == 525 ~ "Sad", 
+                              emotion == 131 ~ "Happy", 
+                              emotion == 232 ~ "Angry", 
+                              emotion == 434 ~ "Fear", 
+                              emotion == 535 ~ "Sad"))
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+```
+
+# CHEEK child
+
+### Make cheek/child df 
+
+```{r}
+child_cheek <- df %>%
+  filter(emo %in% c("happy", "Angry", "Fear", "Sad")) %>%
+  filter(emotion %in% c("121", "323", "424", "525")) %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(child_cheek)
+
+```
+
+## Fix factor levels 
+
+```{r}
+
+child_cheek$emo <- fct_relevel(child_cheek$emo, c("Happy", "Angry", "Fear", "Sad"))
+
+child_cheek$emotion <- fct_relevel(child_cheek$emotion, c("121", "323", "424", "525"))
+
+levels(child_cheek$emo)
+
+child_cheek$bin <- fct_relevel(child_cheek$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(child_cheek$bin)
+```
+
+## Model 1 (intercepts only)
+
+
+This model predicts Zdiff from fixed effects of emotion (happy, angry), bin (1-10), and emotion x bin interaction. It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). No slopes are included. 
+
+```{r cache = TRUE}
+child_cheek_lm <- lmer(zdiff ~ emo + bin + emo*bin + (1|pp_no) + (1|trial), data = child_cheek, REML = FALSE)
+```
+
+
+### check assumptions - plot residuals and qqplot (check normality)
+```{r}
+plot(child_cheek_lm)
+
+qqnorm(resid(child_cheek_lm))
+qqline(resid(child_cheek_lm))
+```
+
+As suscepted, need to transform to correct normality. 
+
+### compute log_modulus
+
+log modulus - transforms the absolute value (without the -) and then puts the sign back on. Make a new column for log modulus.
+
+```{r}
+child_cheek <- child_cheek %>%
+  mutate(log_modulus = sign(zdiff) * log(1+abs(zdiff)))
+
+glimpse(child_cheek)
+```
+
+### try fit model again
+```{r cache = TRUE}
+child_cheek_lm_1 <- lmer(log_modulus ~ emo + bin + emo*bin + (1|pp_no), data = child_cheek, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(child_cheek_lm_1)
+
+qqnorm(resid(child_cheek_lm_1))
+qqline(resid(child_cheek_lm_1))
+```
+
+this one looks better but not great. 
+
+
+### use ANOVA to estimate effects
+```{r}
+aov_output <- anova(child_cheek_lm_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+```
+
+
+### use summary to get coefficients
+```{r}
+summary(child_cheek_lm_1)
+```
+
+
+### use tidy to get data frame
+```{r}
+tidy_child_cheek1 <- tidy(child_cheek_lm_1)
+```
+
+
+## Model 2 (slopes for emotion)
+```{r}
+child_cheek_lm_2 <- lmer(log_modulus ~ emo + bin + emo*bin + (1 + emo|pp_no) , data = child_cheek, REML = FALSE)
+```
+
+#get anova
+```{r}
+aov_output2 <- anova(child_cheek_lm_2)
+
+kable(aov_output2, digits = 3)
+```
+
+#use summary to get coefficients 
+```{r}
+summary(child_cheek_lm_2)
+```
+
+#tidy df
+```{r}
+tidy_child_cheek2 <- tidy(child_cheek_lm_2)
+```
+
+### Check fit
+
+AIC for model 2 is lower than model 1- adding slopes for emotion improves the fit of the model. 
+```{r}
+AIC(child_cheek_lm_1)
+AIC(child_cheek_lm_2)
+```
+
+### likelihood ratio test
+```{r}
+anova(child_cheek_lm_1, child_cheek_lm_2)
+```
+
+model take away - the addition of a slope for emotion improves model fit 
+
+
+## model 3 (slopes for emotion and bin ) 
+
+```{r eval = FALSE}
+child_cheek_lm_3 <- lmer(log_modulus ~ emo + bin + emo*bin + (1 + emo + bin|pp_no), data = child_cheek, REML = FALSE)
+```
+
+model 3 fails to converge - thus, model 2 provides the best fit for the data
+
+#### get confidence intervals
+```{r cache = TRUE}
+confint.merMod(child_cheek_lm_2, level = 0.95)
+```
+
+
+# get really nice table 
+```{r}
+child_really_nice_table <- dust(child_cheek_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+child_really_nice_table
+```
+
+
+# CHEEK adult
+
+```{r}
+adult_cheek <- df %>%
+  filter(emo %in% c("Happy", "Angry", "Fear", "Sad")) %>%
+  filter(emotion %in% c("131", "232", "434", "535")) %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(adult_cheek)
+
+```
+
+
+
+### fix factor levels 
+
+```{r}
+adult_cheek$emo <- fct_relevel(adult_cheek$emo, c("Happy", "Angry", "Fear", "Sad"))
+
+adult_cheek$emotion <- fct_relevel(adult_cheek$emotion, c("131", "232", "434", "535"))
+
+levels(adult_cheek$emo)
+
+adult_cheek$bin <- fct_relevel(adult_cheek$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(adult_cheek$bin)
+```
+## Model 1
+
+```{r}
+adult_cheek_lm <- lmer(zdiff ~ emo + bin + emo*bin + (1|pp_no), data = adult_cheek, REML = FALSE)
+```
+
+
+```{r}
+plot(adult_cheek_lm)
+
+qqnorm(resid(adult_cheek_lm))
+qqline(resid(adult_cheek_lm))
+```
+
+
+### need to transform to correct normality. 
+
+### compute log_modulus
+
+```{r}
+adult_cheek <- adult_cheek %>%
+  mutate(log_modulus = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+### try fit model again
+
+```{r}
+adult_cheek_lm_1 <- lmer(log_modulus ~ emo + bin + emo*bin + (1|pp_no), data = adult_cheek, REML = FALSE)
+
+```
+
+### check assumptions again
+```{r}
+plot(adult_cheek_lm_1)
+
+qqnorm(resid(adult_cheek_lm_1))
+qqline(resid(adult_cheek_lm_1))
+```
+
+### get anova, summary, tidy 
+
+```{r}
+anova(adult_cheek_lm_1)
+```
+
+```{r}
+summary(adult_cheek_lm_1)
+```
+
+```{r}
+tidy_adult_cheek1 <- tidy(adult_cheek_lm_1)
+```
+
+
+## model 2 (slope for emotion)
+```{r}
+adult_cheek_lm_2 <- lmer(log_modulus ~ emo + bin + emo*bin + (1 + emo|pp_no) , data = adult_cheek, REML = FALSE)
+```
+
+
+### get anova, summary and tidy 
+```{r}
+aov_output3 <- anova(adult_cheek_lm_2)
+
+kable(aov_output3, digits = 3)
+```
+
+```{r}
+summary(adult_cheek_lm_2)
+
+```
+
+```{r}
+tidy_adult_cheek2 <- tidy(adult_cheek_lm_2)
+```
+
+### check model fit
+
+AIC lower for model 2, adding slopes for emotino improves model fit. 
+```{r}
+AIC(adult_cheek_lm_1)
+AIC(adult_cheek_lm_2)
+```
+
+```{r}
+anova(adult_cheek_lm_1, adult_cheek_lm_2)
+```
+
+model take away - the addition of a slope for emotion improves model fit 
+
+## model 3
+
+```{r eval = FALSE}
+adult_cheek_lm_3 <- lmer(log_modulus ~ emo + bin + emo*bin + (1 + emo + bin|pp_no), data = adult_cheek, REML = FALSE)
+```
+
+# model take home
+
+model 3 fails to converge, thus, model 2 provides the best fit for the data 
+
+
+# get confidence intervals 
+```{r cache = TRUE}
+confint.merMod(adult_cheek_lm_2, level = 0.95)
+```
+
+# get really nice table
+```{r}
+adult_really_nice_table <- dust(adult_cheek_lm_2) %>%
+  sprinkle(col = 4:7, round = 3, pad = 15, halign = "center", valign = "middle") %>%
+  sprinkle(col = 8, fn = quote(pvalString(value)), halign = "center", valign = "middle") %>%
+  sprinkle_colnames(term = "Term", 
+                    estimate = "Estimate", 
+                    std.error = "SE",
+                    statistic = "t statistic", 
+                    p.value = "P-value")  %>%
+  sprinkle(bg_pattern_by = "rows") %>%
+    sprinkle_print_method("html") 
+
+adult_really_nice_table
+```
+
+```{r}
+beepr::beep()
+```
+
+
+```{r}
+df %>% 
+  write_csv(here::here("data", "adult_child_combined", "zdiff_binscreened2.csv"))
+```
+
+cheek analyses take home - it appears as if there is no emotion x bin interaction for either child or adult faces. However, cheek activity was significantly greater towards happy faces compared to angry faces displayed by an adult very late in the trial at 900 ms and 1000 ms, suggesting that pre-schoolers DID mimic adult happy faces.  
+
+
+
+
+

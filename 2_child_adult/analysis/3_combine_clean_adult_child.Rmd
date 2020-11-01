@@ -1,0 +1,78 @@
+---
+title: "combine clean adult_child"
+author: "Jen Richmond"
+date: "01/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+library(readr)
+library(readxl)
+```
+
+# Read in clean data
+
+Using map to read in and bind together many csv files- notes from this blog post using option2A www.jenrichmond.rbind.io/post/use-map-to-read-many-csv-files
+
+### read in child data
+```{r message=FALSE, warning=FALSE}
+
+data_path1 <- here("data", "clean_data")
+
+files <- dir(data_path1, pattern = "*_child_*")
+
+child_data <- files %>%
+  map(~ read_csv(file.path(data_path1, .))) %>%
+  reduce(rbind)
+
+
+
+```
+
+### read adult files
+```{r message=FALSE, warning=FALSE}
+
+data_path2 <- here("data", "clean_data")
+
+files2 <- dir(data_path2, pattern = "*_adult_*")
+
+adult_data <- files2 %>%
+  map(~ read_csv(file.path(data_path2, .))) %>%
+  reduce(rbind)
+
+```
+
+# create participant and condition columns out of filename
+
+Use separate() to split the filename into  pp_no and condition and mutate with str_sub to drop the last 6 characters off the end of the values in the condition column to get rid of the .xlsx
+
+```{r}
+adult_cond <- adult_data %>%
+  separate(file_name, into = c("pp_no", "model", "emotion"), sep = "_") %>% 
+  mutate(emotion = str_sub(emotion, end = -6)) 
+
+child_cond <- child_data %>%
+  separate(file_name, into = c("pp_no", "model", "emotion"), sep = "_") %>% 
+  mutate(emotion = str_sub(emotion, end = -6)) 
+```
+
+
+# bind child_cond and adult_cond together using rbind and then write csv
+```{r}
+child_adult_clean <- 
+  rbind(child_cond, adult_cond) %>%
+  write_csv(here("data", "adult_child_combined", "child_adult_clean.csv"))
+
+```
+

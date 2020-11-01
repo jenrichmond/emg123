@@ -1,0 +1,41 @@
+---
+title: "add filename"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(here)
+
+```
+
+SOlution from https://stackoverflow.com/questions/47540471/load-multiple-excel-files-and-name-object-after-a-file-name
+
+```{r}
+filepath <- here("data", "sahar_raw_data", "faces")
+
+file_list <- list.files(path = filepath, pattern='*.xlsx')
+
+print(file_list)
+```
+
+https://stackoverflow.com/questions/35272457/what-does-the-dplyr-period-character-reference/35273033
+
+```{r}
+
+df_excel <- file_list %>% 
+  map_df(~ read_excel(path = .x)  %>%
+        mutate("file_name" = .x))
+                                   
+```
+
+
+
+

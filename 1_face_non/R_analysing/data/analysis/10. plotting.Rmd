@@ -1,0 +1,95 @@
+---
+title: "10_plotting"
+author: "Sahar Fatima"
+date: "07/07/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+following: https://rpubs.com/jenrichmond/emg6 
+
+## load packages 
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(janitor)
+library(papaja)
+```
+
+## read in screened bin data for faces and non_face
+
+```{r message=FALSE, warning=FALSE}
+face_screened <- read_csv(here("R_analysing", "data", "9_face_zdiff_screened.csv"))
+
+non_screened <- read_csv(here("R_analysing", "data", "9_non_zdiff_screened.csv"))
+```
+
+## fix bin values 
+
+```{r}
+face_screened$bin <- str_sub(face_screened$bin, -4) 
+
+non_screened$bin <- str_sub(non_screened$bin, -4)
+```
+
+## recode emotion conditions
+```{r}
+face_screened <- face_screened %>%
+  mutate(condition = recode(condition, "429" = "angry","673" = "happy", .default = "NA"))
+
+non_screened <- non_screened %>%
+  mutate(condition = recode(condition, "913" = "negative","285" = "positive", .default = "NA"))
+```
+
+## fix variable types 
+```{r}
+face_screened$condition <- as.factor(face_screened$condition)
+face_screened$trial <- as.factor(face_screened$trial)
+face_screened$bin <- as.factor(face_screened$bin)
+face_screened$muscle <- as.factor(face_screened$muscle)
+
+non_screened$condition <- as.factor(non_screened$condition)
+non_screened$trial <- as.factor(non_screened$trial)
+non_screened$bin <- as.factor(non_screened$bin)
+non_screened$muscle <- as.factor(non_screened$muscle)
+
+```
+
+## plot face
+```{r}
+face_plot <- face_screened %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "in response to facial stimuli") + 
+  scale_y_continuous(limits = c(-0.25, 0.2))
+
+print(face_plot)
+```
+
+## plot non-face
+```{r}
+non_plot <- non_screened %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  facet_wrap(~ muscle) +
+  labs(title = "mean difference in brow and cheek muscle activity from baseline", subtitle = "response to non-facial stimuli") + 
+  scale_y_continuous(limits = c(-0.25, 0.2))
+
+print(non_plot)
+```
+
+
+

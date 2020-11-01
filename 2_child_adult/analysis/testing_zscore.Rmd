@@ -1,0 +1,130 @@
+---
+title: "test_zscore"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(ggplot2) 
+library(ggeasy)
+library(dplyr)
+library(RColorBrewer)
+library(papaja)
+library(lubridate)
+```
+
+
+# read in data
+
+```{r message=FALSE, warning=FALSE}
+data <- read_csv(here::here("data", "adult_child_combined", "clean_no_bl_outliers.csv"))
+```
+
+- make data wide, use mutate to make new z variables 
+
+```{r}
+brow_zscore <- data %>%
+  pivot_wider(names_from = muscle, values_from = rms) %>%
+  group_by(pp_no) %>%
+  select(1:7) %>%
+  mutate(zbrow = scale(brow, center = TRUE, scale = TRUE)) 
+
+summary(brow_zscore)
+```
+
+# calculating difference scores 
+
+- calculate differences scores from baseline
+- need to make BIN wide to allow for calculations across columns
+- do brow and cheek separately 
+
+# BROW DATA
+
+## add a muscle column
+```{r}
+brow_z <- brow_zscore %>%
+  mutate(muscle = "brow") %>%
+  select(pp_no, model, emotion, bin, trial, muscle, zbrow)
+```
+
+
+
+## make the bin column wide and rename bin_0 as BL
+
+```{r}
+brow_z_wide <- brow_z %>%
+  pivot_wider(names_from = bin, values_from = zbrow) %>%
+  rename(BL = bin_0)
+```
+
+
+
+
+```{r}
+brow_z_diff <- brow_z_wide %>%
+  mutate(diff_bin1 = bin_1 - BL,
+         diff_bin2 = bin_2 - BL,
+         diff_bin3 = bin_3 - BL,
+         diff_bin4 = bin_4 - BL,
+         diff_bin5 = bin_5 - BL,
+         diff_bin6 = bin_6 - BL,
+         diff_bin7 = bin_7 - BL,
+         diff_bin8 = bin_8 - BL,
+         diff_bin9 = bin_9 - BL,
+         diff_bin10 = bin_10 - BL) %>%
+  select(-BL, - starts_with("bin"))
+```
+
+
+
+```{r}
+brow_zdiff_long <- brow_z_diff %>%
+    pivot_longer(names_to = "bin", values_to = "zdiff", diff_bin1:diff_bin10) %>%
+    mutate(zbrow = scale(zdiff, center = TRUE, scale = TRUE)) 
+
+
+summary(brow_zdiff_long)
+```
+
+## plotting 
+
+```{r}
+
+  
+  
+brow_zdiff_long$emotion <- as.factor(brow_zdiff_long$emotion)
+  
+
+plot <- brow_zdiff_long %>%
+  filter(emotion %in% c("121", "131", "232", "343")) %>%
+  group_by(emotion, model) %>%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = model, y = meanZ, fill = emotion)) +
+  geom_col(position = "dodge") +
+  theme_apa(base_size = 14) +
+  scale_fill_grey(start = 0.4, end = 0.7) +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4, position = position_dodge(.9)) +
+  theme_classic() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(colour =  "black", size = 1)) +
+  scale_y_continuous(limits = c(-0.1, 0.1)) +
+  easy_x_axis_title_size(size = 12) +
+  easy_y_axis_title_size(size = 12)
+
+print(plot)
+  
+```
+
+
+
+
+
+
+
+
+
+
+

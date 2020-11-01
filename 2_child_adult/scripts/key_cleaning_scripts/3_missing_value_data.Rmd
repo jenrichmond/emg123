@@ -1,0 +1,103 @@
+---
+title: "missing_values_data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(readxl)
+library(dplyr)
+```
+
+
+#pp464_child_323
+
+```{r}
+pp464_child_323 <- read_excel(here("rileyraw_data", "missing_values", "pp464_child_323.xlsx"), range = "A2:AE13")
+```
+
+#replace missing values with NA 
+```{r pressure, echo=FALSE}
+
+pp464_child_323 <- pp464_child_323 %>%
+  mutate(Brow...22 = replace(Brow...22, is.na(Brow...22), "NA"))
+
+pp464_child_323 <- pp464_child_323 %>%
+  mutate(Cheek...23 = replace(Cheek...23, is.na(Cheek...23), "NA")) 
+
+```
+
+#add a new column for file_name
+```{r}
+pp464_child_323 <- pp464_child_323 %>%
+  mutate(file_name = c("pp464_child_323.xlsx"))
+```
+
+
+#rename column names
+```{r}
+pp464_child_323 <- pp464_child_323 %>%
+  remove_empty(which = "cols") %>%
+  clean_names() %>%
+  rename(bin = cmt_text,
+         trial1_brow = rms_2,
+         trial1_cheek = rms_3,
+         trial2_brow = brow_6,
+         trial2_cheek = cheek_7,
+         trial3_brow = brow_10,
+         trial3_cheek = cheek_11,
+         trial4_brow = brow_14,
+         trial4_cheek = cheek_15,
+         trial5_brow = brow_18,
+         trial5_cheek = cheek_19,
+         trial6_brow = brow_22,
+         trial6_cheek = cheek_23,
+         trial7_brow = brow_26,
+         trial7_cheek = cheek_27,
+         trial8_brow = brow_30,
+         trial8_cheek = cheek_31)
+```
+
+#tell r to recognise NA columns as.numeric 
+```{r}
+pp464_child_323$trial6_brow<- as.numeric(pp464_child_323$trial6_brow)
+pp464_child_323$trial6_cheek<- as.numeric(pp464_child_323$trial6_cheek)
+
+```
+
+#Make a new bin column using c(bin_0, bin_1, bin_3 etc), drop the old one and reorder columns to bring participant, condition, bin to the front
+```{r}
+pp464_child_323 <- pp464_child_323 %>%
+   mutate(bin = c("bin_0",
+                 "bin_1",
+                 "bin_2",
+                 "bin_3",
+                 "bin_4",
+                 "bin_5",
+                 "bin_6",
+                 "bin_7",
+                 "bin_8",
+                 "bin_9",
+                 "bin_10")) %>%
+  mutate(bin_no = 0:10) %>%
+    select(file_name, bin, bin_no, contains("trial")) %>%
+  pivot_longer(cols = 4:19,
+               names_to = c("trial",
+               "muscle"),
+          names_sep = "_", 
+        values_to = "rms") %>%
+  arrange(trial)
+```
+
+#write csv 
+
+```{r}
+write_csv(pp464_child_323, here("rileyraw_data", "clean_data", "clean_pp464_child_323.xlsx.csv"))
+```
+```

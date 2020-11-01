@@ -1,0 +1,80 @@
+---
+title: "analysing_test"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##load packages
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+```
+
+```{r}
+df <- read_csv(here("rileyraw_data", "adult_child_combined", "zdiff_binscreened.csv"))
+
+df <- df %>% mutate_if(is.character,as.factor)
+```
+
+```{r}
+adult_child_cheek <- df %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+```
+
+#make a model
+```{r}
+lm_model_cheek <- lmer(zdiff ~ emotion + bin + model + emotion*bin + emotion*model + bin*model + emotion*bin*model + (1|pp_no) + (1|trial), data = adult_child_cheek, REML = FALSE)
+```
+
+```{r}
+anova(lm_model_cheek)
+```
+
+```{r}
+summary(lm_model_cheek)
+```
+```{r}
+plot(lm_model_cheek)
+```
+```{r}
+qqnorm(resid(lm_model_cheek))
+qqline(resid(lm_model_cheek))
+```
+
+#do the same for brow
+
+```{r}
+adult_child_brow <- df %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+```
+
+#make a model
+
+```{r}
+lm_model_brow <- lmer(zdiff ~ emotion + bin + model + emotion*bin + emotion*model + bin*model + emotion*bin*model + (1|pp_no) + (1|trial), data = adult_child_brow, REML = FALSE)
+```
+
+```{r}
+anova(lm_model_brow)
+```
+
+```{r}
+summary(lm_model_brow)
+```
+
+```{r}
+plot(lm_model_brow)
+```
+```{r}
+qqnorm(resid(lm_model_brow))
+qqline(resid(lm_model_brow))
+```
+

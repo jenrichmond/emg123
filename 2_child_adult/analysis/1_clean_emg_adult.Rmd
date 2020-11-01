@@ -1,0 +1,56 @@
+---
+title: "clean_adult_data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(dplyr)
+library(janitor)
+library(readxl)
+library(naniar)
+library(beepr)
+```
+
+
+# call the functions 
+```{r}
+source(here("analysis", "riley_cleaning_functions.R"))
+```
+
+# define a file path
+
+```{r}
+file_path <- here("data", "adultsfaces")
+```
+
+# get a list of files in that file path 
+
+```{r}
+file_list <- list.files(path = file_path, pattern='*.xlsx') 
+```
+
+# use map to read excel to read all the files 
+
+And add a file_name variable to each one
+```{r message=FALSE, warning=FALSE}
+rawemg_list <- file_list %>% 
+  map(~ read_excel(path = here("data", "adultsfaces", .x), range = "A2:AE13")  %>%
+        mutate("file_name" = .x))
+
+beep()
+```
+
+# use map to cleanwrite_emg on all items in the rawemg_list
+```{r}
+cleanemg_list <- rawemg_list %>%
+  map(~ cleanwrite_emg(.x))
+
+beep()
+```
+

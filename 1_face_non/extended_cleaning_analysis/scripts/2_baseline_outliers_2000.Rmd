@@ -1,0 +1,111 @@
+---
+title: "2_baseline_outliers"
+author: "Sahar Fatima"
+date: "16/09/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+library(skimr)
+
+```
+
+# Read in clean data
+```{r message=FALSE, warning=FALSE}
+
+face <- read_csv(here("extended_cleaning_analysis", "data", "clean_data", "faces_clean_extended.csv"))
+
+non <- read_csv(here("extended_cleaning_analysis", "data", "clean_data", "non_clean_extended.csv"))
+
+```
+
+## create participant and condition columns out of filename
+
+Use separate() to split the filename into pp_no and condition and mutate with str_sub to drop the last 6 characters off the end of the values in the condition column to get rid of the .xlsx
+
+```{r}
+face <- face %>%
+  separate(file_name, into = c("pp_no", "condition"), sep = "_") %>% 
+  mutate(condition = str_sub(condition, end = -6)) 
+
+non <- non %>%
+  separate(file_name, into = c("pp_no", "condition"), sep = "_") %>% 
+  mutate(condition = str_sub(condition, end = -6)) 
+```
+
+
+## Combine final FACE and NON-FACE to make data frame with all raw data. 
+```{r}
+raw_face_nonface <- bind_rows(face, non) %>%
+  arrange(pp_no, muscle, condition, trial, bin_no) %>%
+  select(pp_no, muscle, condition, trial, bin, bin_no, rms)
+
+write_csv(raw_face_nonface, here("extended_cleaning_analysis", "data", "clean_data", "raw_face_nonface.csv"))
+```
+
+
+# FACE FIRST
+## filter out baseline + outliers
+if sdRMS > 2 = TRUE, if not = FALSE -> outlier2SD
+if sdRMS > 1.5 = TRUE, if not = FALSE -> outlier1.5SD
+```{r}
+face_BL <- face %>%
+  filter(bin == "bin_0") 
+
+face_stat <- face_BL %>%
+  group_by(pp_no, muscle, condition) %>%
+  mutate(meanRMS = mean(rms), 
+         sdRMS = sd(rms))
+
+face_BL_outlier <- face_stat %>%
+  mutate("outlier2SD" = if_else(rms > (meanRMS + 2*sdRMS), "TRUE", "FALSE")) %>%
+  mutate("outlier1.5SD" = if_else(rms > (meanRMS + 1.5*sdRMS), "TRUE", "FALSE"))
+
+#check if outlier is logical
+glimpse(face_BL_outlier)
+
+#make outlier logical
+face_BL_outlier$outlier2SD <- as.logical(face_BL_outlier$outlier2SD)
+face_BL_outlier$outlier1.5SD <- as.logical(face_BL_outlier$outlier1.5SD)
+
+```
+
+# Now NON-FACE
+```{r}
+non_BL <- non %>%
+  filter(bin == "bin_0") 
+
+non_stat <- non_BL %>%
+  group_by(pp_no, muscle, condition) %>%
+  mutate(meanRMS = mean(rms), 
+         sdRMS = sd(rms))
+
+non_BL_outlier <- non_stat %>%
+  mutate("outlier2SD" = if_else(rms > (meanRMS + 2*sdRMS), "TRUE", "FALSE")) %>%
+  mutate("outlier1.5SD" = if_else(rms > (meanRMS + 1.5*sdRMS), "TRUE", "FALSE"))
+
+#check if outlier is logical
+glimpse(non_BL_outlier)
+
+#make outlier logical
+non_BL_outlier$outlier2SD <- as.logical(non_BL_outlier$outlier2SD)
+non_BL_outlier$outlier1.5SD <- as.logical(non_BL_outlier$outlier1.5SD)
+```
+# write to csv
+
+```{r}
+write_csv(face_BL_outlier, here("extended_cleaning_analysis", "data", "face_BL_outlier_2000.csv"))
+
+write_csv(non_BL_outlier, here("extended_cleaning_analysis", "data", "non_BL_outlier_2000.csv"))
+```
+

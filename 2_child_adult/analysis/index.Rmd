@@ -1,0 +1,48 @@
+---
+title: "Home"
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    toc: false
+editor_options:
+  chunk_output_type: console
+---
+
+This website hosts Riley's honours data analysis. The cleaning, plotting, analysis process is documented in the .Rmd files below. 
+
+# 1. Cleaning
+- [clean emg data for adult face](1_clean_emg_adult.html)
+- [clean emg data for child faces](2_clean_emg_child.html)
+- [combine cleaned child and adult data](3_combine_clean_adult_child.html)
+- [clean baseline](4_clean_baseline.html)
+- [calculate zscores](5_calculating_zscores.html)
+- [deal wih bin outliers](6_bin_outliers.html)
+
+# 2. Plotting
+
+- [plotting cheek and brow activity in response to child and adult faces](7_plotting.html)
+
+- [plotting cheek response to child and adult faces](11_plotting_cheek.html)
+
+- [plotting cheek response to child and adult faces](12_plotting_brow.html)
+
+- [plotting brow and cheek activity (separately) for happy and angry faces for adult and child faces together](14_plotting_adult_child.html)
+
+- [all emo plotting](all_emo_plotting.html)
+
+
+
+# 3. Analysis
+
+- [first models- emotion, bin, emotion*bin with random intercepts for participant and trial](8_analysing.html)
+
+- [cheek analysis](9_cheek_analysis.html)
+  + cheek analysis looking at responses to child and adult faces separately, just happy vs. angry
+  
+- [brow analysis](10_brow_analysis.html)
+  + brow analysis looking at responses to child and adult faces separately, just happy vs. angry
+
+Jenny has checked code above, looks good. Skipping over the all_emo_chid and adult Rmds. You can't look at emotions individually. The activity level has to be assessed relative to another emotion. 
+
+- [adding model to compare child and adult within the same model](13_adult_child_analysis.html)
+- doesn't look like there is an effect of model or interactions involving model. 

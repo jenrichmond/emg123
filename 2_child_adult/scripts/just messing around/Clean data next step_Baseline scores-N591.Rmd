@@ -1,0 +1,96 @@
+---
+title: "next steps clean data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load packages
+```{r}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+```
+
+# Read in clean data
+
+Using map to read in and bind together many csv files- notes from this blog post using option2A www.jenrichmond.rbind.io/post/use-map-to-read-many-csv-files
+
+### read child files
+```{r message=FALSE, warning=FALSE}
+data_path1 <- here("rileyraw_data", "clean_data_childface")
+
+files <- dir(data_path1, pattern = "*.xlsx.csv")
+
+child_data <- files %>%
+  map(~ read_csv(file.path(data_path1, .))) %>%
+  reduce(rbind)
+```
+
+### read adult files
+```{r message=FALSE, warning=FALSE}
+data_path2 <- here("rileyraw_data", "clean_data_adultface")
+
+files <- dir(data_path2, pattern = "*.xlsx.csv")
+
+adult_data <- files %>%
+  map(~ read_csv(file.path(data_path2, .))) %>%
+  reduce(rbind)
+```
+
+
+# use naniar to look at missing data
+ 
+Check on missing values child data- are the NA? or totally missing??
+
+```{r}
+naniar::vis_miss(child_data)
+
+naniar::vis_miss(adult_data)
+
+```
+
+# create participant and condition columns out of filename
+
+NOTE working with adults data here because it isn't missing data--- you will need to replicate with child
+
+Use separate() to split the filename into  pp_no and condition and mutate with str_sub to drop the last 6 characters off the end of the values in the condition column to get rid of the .xlsx
+
+```{r}
+
+adult_cond <- adult_data %>%
+  separate(file_name, into = c("pp_no", "model", "emotion"), sep = "_") %>% 
+  mutate(emotion = str_sub(emotion, end = -6)) 
+```
+
+
+# Q1 are there baseline differences between brow and cheek?
+
+1. Filter the data to only include bin 0 (baseline- BL) and plot BL scores for each trial, separately for brow and cheek, coloured by positive/negative. 
+
+```{r}
+adult_BL <- adult_cond %>%
+  filter(bin == "bin_0")
+```
+
+Plot baseline 
+
+```{r}
+adult_BL %>%
+  ggplot(aes(x = trial , y = rms, colour = emotion)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle)
+```
+
+```{r}
+adult_BL %>%
+  group_by(muscle, emotion)  %>%
+  summarise(meanRMS = mean(rms), sdRMS = sd(rms))
+```
+
+Next challenge to work out- identify trials that need to be excluded because the baseline score is more than 2SD above the mean for that participant?? 
+

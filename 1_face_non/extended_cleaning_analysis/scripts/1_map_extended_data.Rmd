@@ -1,0 +1,183 @@
+---
+title: "1_map_extended_data"
+author: "Sahar Fatima"
+date: "16/09/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load packages
+```{r}
+library(readxl)
+library(tidyverse)
+library(here)
+library(janitor)
+```
+
+### need to test cleaning on one pp
+```{r message=FALSE, warning=FALSE}
+# read in data
+test <- read_excel(here("extended_cleaning_analysis", "data", "raw_data", "face", "pp481_429.xlsx")) %>%
+  mutate_if(is.character,as.double) %>%
+  mutate(file_name = "pp604_429.xlsx") 
+
+# remove rows and columns
+test_remove <- test[3:23,] %>%
+  remove_empty(which = "cols")
+
+# rename variables 
+test_rename <- test_remove %>%
+  rename(bin = BROW, 
+         trial1_brow = BROWDF...2, 
+         trial1_cheek = CHEEKDF...3, 
+         trial2_brow = BROWDF...7,
+         trial2_cheek = CHEEKDF...8, 
+         trial3_brow = BROWDF...12, 
+         trial3_cheek = CHEEKDF...13, 
+         trial4_brow = BROWDF...17, 
+         trial4_cheek = CHEEKDF...18,
+         trial5_brow = BROWDF...22,
+         trial5_cheek = CHEEKDF...23, 
+         trial6_brow = BROWDF...27, 
+         trial6_cheek = CHEEKDF...28,
+         trial7_brow = BROWDF...32, 
+         trial7_cheek = CHEEKDF...33, 
+         trial8_brow = BROWDF...37, 
+         trial8_cheek = CHEEKDF...38)
+
+test_bin <- test_rename %>%
+  mutate(bin = c("bin_0", "bin_1", "bin_2", "bin_3", "bin_4", "bin_5", "bin_6", "bin_7", "bin_8", "bin_9", "bin_10", "bin_11", "bin_12", "bin_13","bin_14", "bin_15", "bin_16", "bin_17", "bin_18", "bin_19", "bin_20")) %>%
+  mutate(bin_no = 0:20) %>%
+  select(file_name, bin, bin_no, contains("trial"))
+
+# Make data long (using names to both trial and muscle with sep = _)
+
+test_long <- test_bin %>%
+  pivot_longer(cols = 4:19, 
+               names_to = c("trial", "muscle"), 
+               names_sep = "_",
+               values_to = "rms") %>%
+  arrange(muscle, trial, bin_no) 
+```
+
+Ok, so that worked!! Now to run it on all face and non-face files. 
+First, need to make a function from the chunk above (function code can be found in extended_cleaning_analysis folder). Done - SF (16/09/20)
+Now, set up file path and list, and read in functions. 
+
+## call functions
+```{r}
+source(here("extended_cleaning_analysis", "cleanwrite_function_extendedanalysis.R"))
+```
+
+
+## set up path and files list
+```{r}
+
+# faces
+face_filepath <- here("extended_cleaning_analysis", "data", "raw_data", "face")
+
+face_file_list <- list.files(path = face_filepath, pattern='*.xlsx')
+
+# non-faces 
+non_filepath <- here("extended_cleaning_analysis", "data", "raw_data", "non-face")
+
+non_file_list <- list.files(path = non_filepath, pattern='*.xlsx')
+
+```
+
+## FACE data first 
+```{r message=FALSE, warning=FALSE}
+face_list_raw <- face_file_list %>% 
+  map(~ read_excel(path = here("extended_cleaning_analysis", "data", "raw_data", "face", .x), range = "A3:AL24")  %>%
+        mutate("file_name" = .x))
+
+# get first item of list for testing -ahhh it worked!
+face_1 <- face_list_raw[[1]] %>%
+  cleanwrite_emg_extended()
+
+```
+
+### write to csv and save to clean_data folder
+```{r}
+face_cleanwrite <- face_list_raw %>%
+  map(~ cleanwrite_emg_extended(.x))
+```
+
+### make a df with face files! 
+```{r}
+df_face <- face_list_raw %>%
+  map_df(~ clean_emg_extended(.x))
+
+df_face$rms <- as.numeric(df_face$rms)
+df_face$bin <- as.factor(df_face$bin)
+df_face$trial <- as.factor(df_face$trial)
+df_face$muscle <- as.factor(df_face$muscle)
+
+# write as a csv
+write_csv(df_face, here("extended_cleaning_analysis", "data", "clean_data", "faces_clean_extended.csv"))
+```
+
+
+OK faces data is done!! Now, onto non-face data. 
+
+## NON-FACE
+```{r message=FALSE, warning=FALSE}
+non_list_raw <- non_file_list %>% 
+  map(~ read_excel(path = here("extended_cleaning_analysis", "data", "raw_data", "non-face", .x), range = "A3:AL24")  %>%
+        mutate("file_name" = .x))
+
+```
+
+
+### write to csv and save to clean_data folder
+```{r}
+non_cleanwrite <- non_list_raw %>%
+  map(~ cleanwrite_emg_extended(.x))
+```
+
+NOTE: pp481_913 - does not work with code so going to do it separately and combine with final df :)
+```{r}
+pp481_913 <- read_excel(here("extended_cleaning_analysis", "data", "raw_data", "pp481_913.xlsx"), range = "A3:AL24") %>%
+  mutate_if(is.character,as.double) %>%
+  mutate(file_name = "pp481_913.xlsx") %>%
+  remove_empty(which = "cols") %>%
+  rename(bin = ...1, 
+         trial3_brow = ...12, 
+         trial3_cheek = ...13, 
+         trial7_brow = ...32, 
+         trial7_cheek = ...33) %>%
+  mutate(bin = c("bin_0", "bin_1", "bin_2", "bin_3", "bin_4", "bin_5", "bin_6", "bin_7", "bin_8", "bin_9", "bin_10", "bin_11", "bin_12", "bin_13","bin_14", "bin_15", "bin_16", "bin_17", "bin_18", "bin_19", "bin_20")) %>%
+  mutate(bin_no = 0:20) %>%
+  select(file_name, bin, bin_no, contains("trial")) %>%
+  pivot_longer(cols = 4:7, 
+               names_to = c("trial", "muscle"), 
+               names_sep = "_",
+               values_to = "rms") %>%
+  arrange(muscle, trial, bin_no)
+
+write_csv(pp481_913, here("extended_cleaning_analysis", "data", "clean_data", "clean_pp481_913.xlsx.csv"))
+  
+```
+
+
+### make a df with non-face files! 
+```{r}
+df_non <- non_list_raw %>%
+  map_df(~ clean_emg_extended(.x))
+
+df_non <- rbind(df_non, pp481_913) %>%
+  arrange(muscle, trial, bin) 
+
+df_non$rms <- as.numeric(df_non$rms)
+df_non$bin <- as.factor(df_non$bin)
+df_non$trial <- as.factor(df_non$trial)
+df_non$muscle <- as.factor(df_non$muscle)
+
+# write as a csv
+write_csv(df_non, here("extended_cleaning_analysis", "data", "clean_data", "non_clean_extended.csv"))
+
+```
+

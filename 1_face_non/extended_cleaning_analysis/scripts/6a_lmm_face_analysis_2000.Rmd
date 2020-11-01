@@ -1,0 +1,238 @@
+---
+title: "6_lmm_face_analysis_2000"
+author: "Sahar Fatima"
+date: "16/09/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objective 
+Analyse cheek and brow muscle activity in response to facial expressions of emotion (i.e., happy and angry faces) from 500 - 2000ms post-stimulus onset. 
+
+## load packages 
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+library(effsize)
+library(lsmeans)
+```
+
+
+## read in data 
+filter out diff_bin1 - diff_bin4
+```{r message=FALSE, warning=FALSE}
+face <- read_csv(here("extended_cleaning_analysis", "data", "5_face_screened_2000.csv")) %>%
+  mutate(condition = recode(condition, "429" = "angry","673" = "happy", .default = "NA")) %>%
+  filter(bin != c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4"))
+
+options(scipen = 999)
+```
+
+## fix data types 
+
+```{r}
+face$condition <- as.factor(face$condition)
+
+face <- face %>% 
+  mutate_if(is.character,as.factor) 
+
+face$bin <- fct_relevel(face$bin, c("diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10", "diff_bin11", "diff_bin12", "diff_bin13", "diff_bin14", "diff_bin15", "diff_bin16", "diff_bin17", "diff_bin18", "diff_bin19", "diff_bin20"))
+
+```
+
+## make cheek and brow data frames
+```{r}
+#face_cheek 
+face_cheek <- face %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, condition, trial, bin)
+
+#face_brow
+face_brow <- face %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, condition, trial, bin)
+```
+
+# CHEEK
+
+### Cheek MODEL 1 (including all main effects and interactions as fixed effects and random slopes)
+This model predicts Zdiff from fixed effects of condition (happy, angry) and bin (1-20), and their interactions (condition x bin).
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition, bin and their interaction (condition*bin). 
+
+```{r}
+# did not converge 
+
+# lm2000_face_cheek_1 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin + condition*bin|pp_no), data = face_cheek, REML = FALSE) 
+```
+
+#### Model 1 take home 
+Cheek Model 1 did not converge - so going to simplify by removing random slope for the interaction. 
+
+### Cheek MODEL 2 (random slopes for condition and bin)
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition and bin. 
+
+
+```{r}
+# did not converge
+
+# lm2000_face_cheek_2 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin|pp_no), data = face_cheek, REML = FALSE)
+```
+
+### Cheek MODEL 3 (random slopes for condition)
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition.
+
+```{r}
+# converges! 
+lm2000_face_cheek_3 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition|pp_no), data = face_cheek, REML = FALSE)
+```
+
+#### check if normality assumptions are met 
+``` {r}
+plot(lm2000_face_cheek_3)
+
+qqnorm(resid(lm2000_face_cheek_3))
+qqline(resid(lm2000_face_cheek_3)) 
+
+```
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative is to use a log modulus transform. This transformation log transforms the absolute value (without the -ve) and then puts the sign back on). 
+``` {r}
+face_cheek <- face_cheek %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run model again
+
+lm2000_face_cheek_3 <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition|pp_no), data = face_cheek, REML = FALSE)
+```
+
+#### test assumptions again 
+Residuals are more evenly distributed than before; qq plot is better as well.
+
+```{r}
+plot(lm2000_face_cheek_3)
+
+qqnorm(resid(lm2000_face_cheek_3))
+qqline(resid(lm2000_face_cheek_3)) 
+
+```
+
+#### get anova()/ summary
+```{r}
+# use anova to estimate effects
+aov2000_face_cheek_3 <- anova(lm2000_face_cheek_3) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+anova(lm2000_face_cheek_3)
+
+# use summary to get coefficients
+summary(lm2000_face_cheek_3)
+
+confint.merMod(lm2000_face_cheek_3, level = 0.95)
+
+```
+
+
+#### model 3 take home 
+so Model 3 converges - main effect for bin is significant. 
+
+In summary table, interactions b/ween condition and some bins is also significant. 
+
+# BROW
+
+### Brow MODEL 1 (including all main effects and interactions as fixed effects and random slopes)
+This model predicts Zdiff from fixed effects of condition (happy, angry) and bin (1-10), and their interactions (condition x bin).
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition, bin and their interaction (condition*bin). 
+
+```{r}
+# did not converge 
+
+# lm_face_brow_1 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin + condition*bin|pp_no), data = face_brow, REML = FALSE) 
+```
+
+#### Model 1 take home 
+Brow Model 1 did not converge - so going to simplify by removing random slope for the interaction. 
+
+### Brow MODEL 2 (random slopes for condition and bin)
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random slopes for condition and bin. 
+
+
+```{r}
+# fails to converge!
+
+# lm_face_brow_2 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition + bin|pp_no), data = face_brow, REML = FALSE)
+```
+
+#### model 2 take home 
+Model 2 failed to converge. 
+
+### Brow MODEL 3 (slopes for condition)
+
+```{r}
+lm2000_face_brow_3 <- lmer(Zdiff ~ condition + bin + condition*bin + (1 + condition|pp_no), data = face_brow, REML = FALSE)
+```
+
+
+##### check if normality assumptions are met 
+``` {r}
+plot(lm2000_face_brow_3)
+
+qqnorm(resid(lm2000_face_brow_3))
+qqline(resid(lm2000_face_brow_3)) 
+
+```
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative is to use a log modulus transform. This transformation log transforms the absolute value (without the -ve) and then puts the sign back on). 
+``` {r}
+face_brow <- face_brow %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run model again 
+
+lm2000_face_brow_3 <- lmer(log_modulus ~ condition + bin + condition*bin + (1 + condition|pp_no), data = face_brow, REML = FALSE)
+```
+
+
+#### test assumptions again 
+Residuals are more evenly distributed than before; qq plot is better as well.
+
+```{r}
+plot(lm2000_face_brow_3)
+
+qqnorm(resid(lm2000_face_brow_3))
+qqline(resid(lm2000_face_brow_3))
+
+```
+
+
+### get anova()/ summary
+```{r}
+aov2000_face_brow_3 <- anova(lm2000_face_brow_3) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+anova(lm2000_face_brow_3)
+summary(lm2000_face_brow_3)
+
+confint.merMod(lm2000_face_brow_3, level = 0.95)
+
+```
+
+#### model 3 take home
+no main effects nor interactions are significant. 

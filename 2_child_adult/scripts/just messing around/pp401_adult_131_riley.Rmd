@@ -1,0 +1,125 @@
+---
+title: "pp401_adult_131"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(readxl)
+```
+
+
+```{r cars}
+pp401_adult_131 <- read_csv(here("data", "pp401_adult_131.csv"))
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+1. get rid of everything below row 14
+2. get rid of blank columns between trials
+
+```{r pressure, echo=FALSE}
+pp401_adult_131_clean <- pp401_adult_131[2:12,] %>%
+  remove_empty(which = "cols") %>%
+  clean_names()
+```
+
+
+3. make the variable names meaningful (i.e bin, trial1_brow, trial1_cheek, trial2_brow, trial2_brow etc)
+```{r}
+pp401_adult_131_clean <- pp401_adult_131_clean %>%
+  rename(bin = 'brow',
+         trial1_brow = brow_df,
+         trial1_cheek = cheek_df,
+         trial2_brow = x6,
+         trial2_cheek = x7,
+         trial3_brow = x10,
+         trial3_cheek = x11,
+         trial4_brow = x14,
+         trial4_cheek = x15,
+         trial5_brow = x18,
+         trial5_cheek = x19,
+         trial6_brow = x22,
+         trial6_cheek = x23,
+         trial7_brow = x26,
+         trial7_cheek = x27,
+         trial8_brow = x30,
+         trial8_cheek = x31)
+
+```
+
+
+
+```{r}
+pp401_adult_131_clean <- pp401_adult_131_clean %>%
+  mutate(participant = "pp401",
+         condition = "adult") %>%
+  select(bin, participant, condition, contains("trial"))
+```
+
+
+
+```{r}
+pp401_adult_131_bin <- pp401_adult_131_clean %>%
+  mutate(bin = c("bin_0",
+                 "bin_1",
+                 "bin_2",
+                 "bin_3",
+                 "bin_4",
+                 "bin_5",
+                 "bin_6",
+                 "bin_7",
+                 "bin_8",
+                 "bin_9",
+                 "bin_10"))
+```
+
+make data long and add new bin no column 
+
+```{r}
+pp401_adult_131_long <- pp401_adult_131_bin %>%
+  mutate(bin_no = 0:10) %>%
+  pivot_longer(cols = 4:19,
+               names_to = c("trial",
+               "muscle"),
+names_sep = "_", 
+values_to = "rms") %>%
+  arrange(bin_no)
+
+
+pp401_adult_131_long$rms <- as.numeric(pp401_adult_131_long$rms)
+pp401_adult_131_long$bin <- as.factor(pp401_adult_131_long$bin)
+pp401_adult_131_long$participant <- as.factor(pp401_adult_131_long$participant)
+pp401_adult_131_long$condition <- as.factor(pp401_adult_131_long$condition)
+pp401_adult_131_long$trial <- as.factor(pp401_adult_131_long$trial)
+pp401_adult_131_long$muscle <- as.factor(pp401_adult_131_long$muscle)
+```
+
+plot data
+```{r}
+pp401_adult_131_plot <- pp401_adult_131_long %>%
+  ggplot(mapping = aes(x = bin_no, y = rms, colour = muscle)) +
+  geom_point() +
+  geom_line(group = 1) +
+  facet_wrap(facets = vars(trial)) +
+  scale_x_discrete(limits = c("0", "1", "2", "3", "4", "5", "6", "7","8", "9", "10")) +
+  theme_bw() 
+
+print(pp401_adult_131_plot)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>test_zscore</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/master/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">RILEY_Hons</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/jenrichmond/RILEY_Hons">
+    <span class="fa fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">test_zscore</h1>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span> workflowr <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> </a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2020-09-12
+</p>
+<p>
+<strong>Checks:</strong> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 6 <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> 1
+</p>
+<p>
+<strong>Knit directory:</strong> <code>RILEY_Hons/</code> <span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed."> </span>
+</p>
+<p>
+This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis was created with <a
+  href="https://github.com/jdblischak/workflowr">workflowr</a> (version 1.6.2). The <em>Checks</em> tab describes the reproducibility checks that were applied when the results were created. The <em>Past versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguncommittedchanges"> <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> <strong>R Markdown file:</strong> uncommitted changes </a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguncommittedchanges" class="panel-collapse collapse">
+<div class="panel-body">
+<p>The R Markdown is untracked by Git. To know which version of the R Markdown file created these results, you’ll want to first commit it to the Git repo. If you’re still working on the analysis, you can ignore this warning. When you’re finished, you can run <code>wflow_publish</code> to commit the R Markdown file and build the HTML.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the global environment can affect the analysis in your R Markdown file in unknown ways. For reproduciblity it’s best to always run the code in an empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20200903code"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Seed:</strong> <code>set.seed(20200903)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20200903code" class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20200903)</code> was run prior to running the code in the R Markdown file. Setting a seed ensures that any results that rely on randomness, e.g. subsampling or permutations, are reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Session information:</strong> recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be confident that you successfully produced the results during this run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomjenrichmondRILEYHonstreea2580168e5baee3aaa264662c160d150303a4fb7targetblanka258016a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/jenrichmond/RILEY_Hons/tree/a2580168e5baee3aaa264662c160d150303a4fb7" target="_blank">a258016</a> </a>
+</p>
+</div>
+<div id="strongRepositoryversionstrongahrefhttpsgithubcomjenrichmondRILEYHonstreea2580168e5baee3aaa264662c160d150303a4fb7targetblanka258016a" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version <a href="https://github.com/jenrichmond/RILEY_Hons/tree/a2580168e5baee3aaa264662c160d150303a4fb7" target="_blank">a258016</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/child_bar_plot.png
+    Ignored:    analysis/child_cheek_plot.png
+    Ignored:    analysis/child_cheekbin_plot.png
+
+Untracked files:
+    Untracked:  analysis/11_plotting_cheek.Rmd
+    Untracked:  analysis/12_plotting_brow.Rmd
+    Untracked:  analysis/13_adult_child_analysis.Rmd
+    Untracked:  analysis/14_plotting_adult_child.Rmd
+    Untracked:  analysis/testing_zscore.Rmd
+    Untracked:  child_bar_plot.png
+    Untracked:  child_cheek_plot.png
+    Untracked:  data/adult_child_combined/zdiff_binscreened2.csv
+
+Unstaged changes:
+    Modified:   analysis/10_brow_analysis.Rmd
+    Modified:   analysis/4_clean_baseline.Rmd
+    Modified:   analysis/5_calculating_zscores.Rmd
+    Modified:   analysis/6_bin_outliers.Rmd
+    Modified:   analysis/7_plotting.Rmd
+    Modified:   analysis/8_analysing.Rmd
+    Modified:   analysis/9_cheek_analysis.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+<p>
+There are no past versions. Publish this analysis with <code>wflow_publish()</code> to start tracking its development.
+</p>
+<hr>
+</div>
+</div>
+</div>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>── Attaching packages ─────────────────────────────────────────────────────────────────────────────────── tidyverse 1.3.0 ──</code></pre>
+<pre><code>✓ ggplot2 3.2.1     ✓ purrr   0.3.4
+✓ tibble  3.0.3     ✓ dplyr   1.0.0
+✓ tidyr   1.1.0     ✓ stringr 1.4.0
+✓ readr   1.3.1     ✓ forcats 0.4.0</code></pre>
+<pre><code>── Conflicts ────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+x dplyr::filter() masks stats::filter()
+x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(here)</code></pre>
+<pre><code>here() starts at /Users/rileyferguson/Desktop/RILEY_Hons</code></pre>
+<pre class="r"><code>library(lme4)</code></pre>
+<pre><code>Loading required package: Matrix</code></pre>
+<pre><code>
+Attaching package: &#39;Matrix&#39;</code></pre>
+<pre><code>The following objects are masked from &#39;package:tidyr&#39;:
+
+    expand, pack, unpack</code></pre>
+<pre class="r"><code>library(lmerTest)</code></pre>
+<pre><code>
+Attaching package: &#39;lmerTest&#39;</code></pre>
+<pre><code>The following object is masked from &#39;package:lme4&#39;:
+
+    lmer</code></pre>
+<pre><code>The following object is masked from &#39;package:stats&#39;:
+
+    step</code></pre>
+<pre class="r"><code>library(broom.mixed)</code></pre>
+<pre><code>Registered S3 method overwritten by &#39;broom.mixed&#39;:
+  method      from 
+  tidy.gamlss broom</code></pre>
+<pre class="r"><code>library(ggplot2) 
+library(ggeasy)
+library(dplyr)
+library(RColorBrewer)
+library(papaja)
+library(lubridate)</code></pre>
+<pre><code>
+Attaching package: &#39;lubridate&#39;</code></pre>
+<pre><code>The following object is masked from &#39;package:here&#39;:
+
+    here</code></pre>
+<pre><code>The following object is masked from &#39;package:base&#39;:
+
+    date</code></pre>
+<div id="read-in-data" class="section level1">
+<h1>read in data</h1>
+<pre class="r"><code>data &lt;- read_csv(here::here(&quot;data&quot;, &quot;adult_child_combined&quot;, &quot;clean_no_bl_outliers.csv&quot;))</code></pre>
+<ul>
+<li>make data wide, use mutate to make new z variables</li>
+</ul>
+<pre class="r"><code>brow_zscore &lt;- data %&gt;%
+  pivot_wider(names_from = muscle, values_from = rms) %&gt;%
+  group_by(pp_no) %&gt;%
+  select(1:7) %&gt;%
+  mutate(zbrow = scale(brow, center = TRUE, scale = TRUE)) 
+
+summary(brow_zscore)</code></pre>
+<pre><code>    pp_no              model              emotion          bin           
+ Length:33814       Length:33814       Min.   :121.0   Length:33814      
+ Class :character   Class :character   1st Qu.:232.0   Class :character  
+ Mode  :character   Mode  :character   Median :424.0   Mode  :character  
+                                       Mean   :340.6                     
+                                       3rd Qu.:434.0                     
+                                       Max.   :535.0                     
+                                                                         
+     bin_no      trial                brow              zbrow.V1     
+ Min.   : 0   Length:33814       Min.   :  0.1886   Min.   :-3.1176  
+ 1st Qu.: 2   Class :character   1st Qu.:  4.6377   1st Qu.:-0.5069  
+ Median : 5   Mode  :character   Median :  7.0499   Median :-0.1799  
+ Mean   : 5                      Mean   :  8.6066   Mean   : 0.0000  
+ 3rd Qu.: 8                      3rd Qu.: 10.4639   3rd Qu.: 0.2854  
+ Max.   :10                      Max.   :290.7781   Max.   :16.7866  
+                                 NA&#39;s   :2048       NA&#39;s   :2048     </code></pre>
+</div>
+<div id="calculating-difference-scores" class="section level1">
+<h1>calculating difference scores</h1>
+<ul>
+<li>calculate differences scores from baseline</li>
+<li>need to make BIN wide to allow for calculations across columns</li>
+<li>do brow and cheek separately</li>
+</ul>
+</div>
+<div id="brow-data" class="section level1">
+<h1>BROW DATA</h1>
+<div id="add-a-muscle-column" class="section level2">
+<h2>add a muscle column</h2>
+<pre class="r"><code>brow_z &lt;- brow_zscore %&gt;%
+  mutate(muscle = &quot;brow&quot;) %&gt;%
+  select(pp_no, model, emotion, bin, trial, muscle, zbrow)</code></pre>
+</div>
+<div id="make-the-bin-column-wide-and-rename-bin_0-as-bl" class="section level2">
+<h2>make the bin column wide and rename bin_0 as BL</h2>
+<pre class="r"><code>brow_z_wide &lt;- brow_z %&gt;%
+  pivot_wider(names_from = bin, values_from = zbrow) %&gt;%
+  rename(BL = bin_0)</code></pre>
+<pre class="r"><code>brow_z_diff &lt;- brow_z_wide %&gt;%
+  mutate(diff_bin1 = bin_1 - BL,
+         diff_bin2 = bin_2 - BL,
+         diff_bin3 = bin_3 - BL,
+         diff_bin4 = bin_4 - BL,
+         diff_bin5 = bin_5 - BL,
+         diff_bin6 = bin_6 - BL,
+         diff_bin7 = bin_7 - BL,
+         diff_bin8 = bin_8 - BL,
+         diff_bin9 = bin_9 - BL,
+         diff_bin10 = bin_10 - BL) %&gt;%
+  select(-BL, - starts_with(&quot;bin&quot;))</code></pre>
+<pre class="r"><code>brow_zdiff_long &lt;- brow_z_diff %&gt;%
+    pivot_longer(names_to = &quot;bin&quot;, values_to = &quot;zdiff&quot;, diff_bin1:diff_bin10) %&gt;%
+    mutate(zbrow = scale(zdiff, center = TRUE, scale = TRUE)) 
+
+
+summary(brow_zdiff_long)</code></pre>
+<pre><code>    pp_no              model              emotion         trial          
+ Length:30740       Length:30740       Min.   :121.0   Length:30740      
+ Class :character   Class :character   1st Qu.:232.0   Class :character  
+ Mode  :character   Mode  :character   Median :424.0   Mode  :character  
+                                       Mean   :340.6                     
+                                       3rd Qu.:434.0                     
+                                       Max.   :535.0                     
+                                                                         
+    muscle              bin                zdiff.V1          zbrow.V1     
+ Length:30740       Length:30740       Min.   :-6.5444   Min.   :-6.0955  
+ Class :character   Class :character   1st Qu.:-0.3018   1st Qu.:-0.3501  
+ Mode  :character   Mode  :character   Median :-0.0364   Median :-0.0845  
+                                       Mean   : 0.0257   Mean   : 0.0000  
+                                       3rd Qu.: 0.2292   3rd Qu.: 0.2248  
+                                       Max.   :16.6187   Max.   :15.9729  
+                                       NA&#39;s   :1862      NA&#39;s   :1862     </code></pre>
+</div>
+<div id="plotting" class="section level2">
+<h2>plotting</h2>
+<pre class="r"><code>brow_zdiff_long$emotion &lt;- as.factor(brow_zdiff_long$emotion)
+  
+
+plot &lt;- brow_zdiff_long %&gt;%
+  filter(emotion %in% c(&quot;121&quot;, &quot;131&quot;, &quot;232&quot;, &quot;343&quot;)) %&gt;%
+  group_by(emotion, model) %&gt;%
+  summarise(meanZ = mean(zdiff, na.rm = TRUE), sd_RMS = sd(zdiff, na.rm = TRUE), n = n(), stderr = sd_RMS/sqrt(n)) %&gt;%
+  ggplot(aes(x = model, y = meanZ, fill = emotion)) +
+  geom_col(position = &quot;dodge&quot;) +
+  theme_apa(base_size = 14) +
+  scale_fill_grey(start = 0.4, end = 0.7) +
+  geom_errorbar(aes(ymin = meanZ-stderr, ymax = meanZ+stderr), size = .4, width = .4, position = position_dodge(.9)) +
+  theme_classic() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(colour =  &quot;black&quot;, size = 1)) +
+  scale_y_continuous(limits = c(-0.1, 0.1)) +
+  easy_x_axis_title_size(size = 12) +
+  easy_y_axis_title_size(size = 12)</code></pre>
+<pre><code>`summarise()` regrouping output by &#39;emotion&#39; (override with `.groups` argument)</code></pre>
+<pre class="r"><code>print(plot)</code></pre>
+<p><img src="figure/testing_zscore.Rmd/unnamed-chunk-8-1.png" width="672" style="display: block; margin: auto;" /></p>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span> Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 3.6.2 (2019-12-12)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS High Sierra 10.13.6
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRblas.0.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_AU.UTF-8/en_AU.UTF-8/en_AU.UTF-8/C/en_AU.UTF-8/en_AU.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] lubridate_1.7.4    papaja_0.1.0.9997  RColorBrewer_1.1-2 ggeasy_0.1.2      
+ [5] broom.mixed_0.2.6  lmerTest_3.1-2     lme4_1.1-23        Matrix_1.2-18     
+ [9] here_0.1           forcats_0.4.0      stringr_1.4.0      dplyr_1.0.0       
+[13] purrr_0.3.4        readr_1.3.1        tidyr_1.1.0        tibble_3.0.3      
+[17] ggplot2_3.2.1      tidyverse_1.3.0   
+
+loaded via a namespace (and not attached):
+ [1] httr_1.4.1          jsonlite_1.7.0      splines_3.6.2      
+ [4] modelr_0.1.5        assertthat_0.2.1    statmod_1.4.34     
+ [7] cellranger_1.1.0    yaml_2.2.1          numDeriv_2016.8-1.1
+[10] pillar_1.4.6        backports_1.1.8     lattice_0.20-38    
+[13] glue_1.4.1          digest_0.6.25       promises_1.1.0     
+[16] rvest_0.3.5         minqa_1.2.4         colorspace_1.4-1   
+[19] htmltools_0.5.0     httpuv_1.5.2        plyr_1.8.5         
+[22] pkgconfig_2.0.3     broom_0.7.0.9001    haven_2.2.0        
+[25] scales_1.1.0        later_1.0.0         git2r_0.27.1       
+[28] farver_2.0.3        generics_0.0.2      ellipsis_0.3.1     
+[31] withr_2.1.2         TMB_1.7.18          lazyeval_0.2.2     
+[34] cli_2.0.2           magrittr_1.5        crayon_1.3.4       
+[37] readxl_1.3.1        evaluate_0.14       fs_1.3.1           
+[40] fansi_0.4.1         nlme_3.1-142        MASS_7.3-51.4      
+[43] xml2_1.2.2          tools_3.6.2         hms_0.5.3          
+[46] lifecycle_0.2.0     munsell_0.5.0       reprex_0.3.0       
+[49] compiler_3.6.2      rlang_0.4.7         grid_3.6.2         
+[52] nloptr_1.2.2.2      rstudioapi_0.11     labeling_0.3       
+[55] rmarkdown_2.3       boot_1.3-23         gtable_0.3.0       
+[58] DBI_1.1.0           reshape2_1.4.3      R6_2.4.1           
+[61] knitr_1.29          workflowr_1.6.2     rprojroot_1.3-2    
+[64] stringi_1.4.6       Rcpp_1.0.5          vctrs_0.3.1        
+[67] dbplyr_1.4.2        tidyselect_1.1.0    xfun_0.15          
+[70] coda_0.19-3        </code></pre>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+http://docs.mathjax.org/en/latest/configuration.html.  This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

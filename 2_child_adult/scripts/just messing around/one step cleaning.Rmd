@@ -1,0 +1,100 @@
+---
+title: "pp401_adult_131"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load packages
+
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(readxl)
+```
+
+# reading data
+```{r read data}
+test <- read_excel(here("rileyraw_data", "adultsfaces", "pp401_adult_131.xlsx"), range = "A2:AE13")
+```
+
+
+1. get rid of everything below row 14
+2. get rid of blank columns between trials
+
+```{r clean names}
+test_done <- emgtest1 %>%
+  remove_empty(which = "cols") %>%
+  clean_names() %>%
+  rename(bin = cmt_text,
+         trial1_brow = rms_2,
+         trial1_cheek = rms_3,
+         trial2_brow = brow_6,
+         trial2_cheek = cheek_7,
+         trial3_brow = brow_10,
+         trial3_cheek = cheek_11,
+         trial4_brow = brow_14,
+         trial4_cheek = cheek_15,
+         trial5_brow = brow_18,
+         trial5_cheek = cheek_19,
+         trial6_brow = brow_22,
+         trial6_cheek = cheek_23,
+         trial7_brow = brow_26,
+         trial7_cheek = cheek_27,
+         trial8_brow = brow_30,
+         trial8_cheek = cheek_31) %>%
+  mutate(bin = c("bin_0",
+                 "bin_1",
+                 "bin_2",
+                 "bin_3",
+                 "bin_4",
+                 "bin_5",
+                 "bin_6",
+                 "bin_7",
+                 "bin_8",
+                 "bin_9",
+                 "bin_10")) %>%
+  mutate(bin_no = 0:10) %>%
+    select(file_name, bin, bin_no, contains("trial")) %>%
+  pivot_longer(cols = 4:19,
+               names_to = c("trial",
+               "muscle"),
+          names_sep = "_", 
+        values_to = "rms") %>%
+  arrange(trial)
+
+```
+
+
+
+
+make data long and add new bin no column 
+
+```{r}
+
+
+pp401_adult_131_long$rms <- as.numeric(pp401_adult_131_long$rms)
+pp401_adult_131_long$bin <- as.factor(pp401_adult_131_long$bin)
+pp401_adult_131_long$participant <- as.factor(pp401_adult_131_long$participant)
+pp401_adult_131_long$condition <- as.factor(pp401_adult_131_long$condition)
+pp401_adult_131_long$trial <- as.factor(pp401_adult_131_long$trial)
+pp401_adult_131_long$muscle <- as.factor(pp401_adult_131_long$muscle)
+```
+
+plot data
+```{r}
+pp401_adult_131_plot <- pp401_adult_131_long %>%
+  ggplot(mapping = aes(x = bin_no, y = rms, colour = muscle)) +
+  geom_point() +
+  geom_line(group = 1) +
+  facet_wrap(facets = vars(trial)) +
+  scale_x_discrete(limits = c("0", "1", "2", "3", "4", "5", "6", "7","8", "9", "10")) +
+  theme_bw() 
+
+print(pp401_adult_131_plot)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

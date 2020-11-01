@@ -1,0 +1,6 @@
+unnamed-chunk-6	~	child_brow	lmer
+unnamed-chunk-9	~	child_brow	lmer
+unnamed-chunk-14	~	child_brow	lmer
+unnamed-chunk-24	%>%	abs	log	mutate	sign	zdiff
+unnamed-chunk-30	~	adult_brow	lmer
+unnamed-chunk-37	adult_brow_lm_2	confint.merMod

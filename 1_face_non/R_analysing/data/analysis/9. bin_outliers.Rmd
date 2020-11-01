@@ -1,0 +1,91 @@
+---
+title: "bin_outliers"
+author: "Sahar Fatima"
+date: "25/06/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+library(skimr)
+
+```
+
+# read in data 
+#### data with BL outliers removed
+
+```{r message=FALSE, warning=FALSE}
+face <- read_csv(here("R_analysing", "data", "8_face_zdiff.csv")) # face data 
+
+non <- read_csv(here("R_analysing", "data", "8_non_zdiff.csv"))  # non-face data
+```
+
+
+# making calculating mean, sd and making a new outlier(TRUE/FALSE) variable
+
+```{r}
+
+# do it for face first
+face_out <- face %>%
+  group_by(pp_no, condition, trial, muscle) %>%
+  mutate(meanZdiff = mean(Zdiff), sdZdiff = sd(Zdiff)) %>%
+  mutate(bin_outlier = if_else(Zdiff > meanZdiff + 2*sdZdiff, "TRUE", "FALSE"))
+
+# how many bins are outliers?
+face_out$bin_outlier <- as.logical(face_out$bin_outlier)
+
+face_outlier_true <- face_out %>%
+  filter(bin_outlier == TRUE)
+
+#do for non-face now
+non_out <- non %>%
+  group_by(pp_no, condition, trial, muscle) %>%
+  mutate(meanZdiff = mean(Zdiff), sdZdiff = sd(Zdiff)) %>%
+  mutate(bin_outlier = if_else(Zdiff > meanZdiff + 2*sdZdiff, "TRUE", "FALSE"))
+
+# how many bins are outliers?
+non_out$bin_outlier <- as.logical(non_out$bin_outlier)
+
+non_outlier_true <- non_out %>%
+  filter(bin_outlier == TRUE)
+```
+
+
+# replace rms values with NA (or not) where outlier = TRUE/FALSE 
+
+```{r}
+face_screen <- face_out %>%
+  mutate(Zdiff = replace(Zdiff, bin_outlier == "TRUE", NA))
+
+non_screen <- non_out %>%
+   mutate(Zdiff = replace(Zdiff, bin_outlier == "TRUE", NA))
+```
+
+
+# write_csv's
+
+```{r}
+#for face data
+face_screen <- face_screen %>%
+  select(2:7) %>%
+  write_csv(here("R_analysing", "data", "9_face_zdiff_screened.csv"))
+
+# non-face data 
+non_screen <- non_screen %>%
+  select(2:7) %>%
+  write_csv(here("R_analysing", "data", "9_non_zdiff_screened.csv"))
+
+
+```
+
+

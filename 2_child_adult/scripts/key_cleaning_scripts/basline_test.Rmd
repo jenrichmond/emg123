@@ -1,0 +1,255 @@
+---
+title: "basline_test"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+# Load packages
+```{r}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+```
+
+# Read in clean data
+
+Using map to read in and bind together many csv files- notes from this blog post using option2A www.jenrichmond.rbind.io/post/use-map-to-read-many-csv-files
+
+### read child files
+```{r message=FALSE, warning=FALSE}
+data_path1 <- here("clean_data", "clean_data_childface")
+
+files <- dir(data_path1, pattern = "*.xlsx.csv")
+
+child_data <- files %>%
+  map(~ read_csv(file.path(data_path1, .))) %>%
+  reduce(rbind)
+```
+
+### read adult files
+```{r message=FALSE, warning=FALSE}
+data_path2 <- here("clean_data", "clean_data_adultface")
+
+files <- dir(data_path2, pattern = "*.xlsx.csv")
+
+adult_data <- files %>%
+  map(~ read_csv(file.path(data_path2, .))) %>%
+  reduce(rbind)
+```
+
+# create participant and condition columns out of filename
+
+NOTE working with adults data here because it isn't missing data--- you will need to replicate with child
+
+Use separate() to split the filename into  pp_no and condition and mutate with str_sub to drop the last 6 characters off the end of the values in the condition column to get rid of the .xlsx
+
+```{r}
+
+adult_cond <- adult_data %>%
+  separate(file_name, into = c("pp_no", "model", "emotion"), sep = "_") %>% 
+  mutate(emotion = str_sub(emotion, end = -6)) 
+```
+
+```{r}
+# bind child_cond and adult_cond together using rbind
+
+# then use write_csv to get a new csv that contains all the clean data
+```
+
+-------------
+```{r}
+library(tidyverse)
+```
+
+```{r}
+clean_data <- read_csv()
+
+```
+
+# Q1 are there baseline differences between brow and cheek?
+
+1. Filter the data to only include bin 0 (baseline- BL) and plot BL scores for each trial, separately for brow and cheek, coloured by positive/negative. 
+
+```{r}
+adult_BL <- adult_cond %>%
+  filter(bin == "bin_0")
+```
+
+#filter out data for participant 404, group by model, muscle, emotion
+```{r}
+pp404_BL <- adult_BL[193:256,] %>%
+  group_by(model, muscle, emotion) %>%
+  summarise(meanRMS = mean(rms), sdRMS = sd(rms))
+
+```
+
+#make a new outlier variable
+if sdRMS > 2 = TRUE, if not = FALSE
+```{r}
+pp404_BL_Out <- pp404_BL %>%
+  mutate(outlier = if_else(sdRMS > (meanRMS + 2*sdRMS), "TRUE", "FALSE"))
+
+
+```
+
+#testing it on the rest of the baseline adult face data
+
+```{r}
+
+adult_BL_stats <- adult_BL %>%
+  group_by(pp_no, model, muscle, emotion) %>%
+  mutate(meanRMS = mean(rms), sdRMS = sd(rms))
+
+adult_BL_outlier <- adult_BL_stats %>%
+  mutate(outlier = if_else(rms > (meanRMS + 2*sdRMS), "TRUE", "FALSE"))
+  
+```
+
+#Test Child data
+
+#arrange columns
+
+```{r}
+child_cond <- child_data %>%
+  separate(file_name, into = c("pp_no", "model", "emotion"), sep = "_") %>% 
+  mutate(emotion = str_sub(emotion, end = -6)) 
+```
+
+
+#use the filter function to obtain only baseline data 
+```{r}
+child_BL <- child_cond %>%
+  filter(bin == "bin_0")
+
+```
+
+#create new columns for mean and std 
+```{r}
+child_BL_stats <- child_BL %>%
+  group_by(pp_no, model, muscle, emotion) %>%
+  mutate(meanRMS = mean(rms), sdRMS = sd(rms))
+ 
+
+```
+
+#create a new column with information about outlier 
+```{r}
+
+child_BL_outlier <- child_BL_stats %>%
+  mutate(outlier = if_else(rms > (meanRMS + 2*sdRMS), "TRUE", "FALSE"))
+
+
+```
+
+
+```{r}
+child_BL_outlier_sum <- child_BL_outlier %>%
+  filter(outlier == "TRUE")
+  
+  
+```
+
+#check if outlier is logical 
+
+```{r}
+glimpse(child_BL_outlier)
+```
+
+#make outliter logical for child and adult face data
+
+```{r}
+child_BL_outlier$outlier <- as.logical(child_BL_outlier$outlier)
+
+adult_BL_outlier$outlier <- as.logical(adult_BL_outlier$outlier)
+```
+
+#make logical variable code as 1 = true, 0 = false, so they are able to be summed for adult and child face data
+
+```{r}
+out_count_child <- child_BL_outlier %>%
+  group_by(pp_no, model, emotion, muscle) %>%
+  summarise(out_count = sum(outlier), trial_count = n())
+
+
+out_count_adult <- adult_BL_outlier %>%
+  group_by(pp_no, model, emotion, muscle) %>%
+  summarise(out_count = sum(outlier), trial_count = n())
+```
+
+#plot outliers for child face condition 
+
+```{r}
+child_BL_outlier %>%
+  filter(emotion == "121") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition child_121")
+
+
+child_BL_outlier %>%
+  filter(emotion == "323") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition child_323")
+
+
+
+child_BL_outlier %>%
+  filter(emotion == "424") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition child_424")
+
+
+
+child_BL_outlier %>%
+  filter(emotion == "525") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition child_525")
+```
+
+#plot outliers for adult face condition 
+```{r}
+
+adult_BL_outlier %>%
+  filter(emotion == "131") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition adult_131")
+
+adult_BL_outlier %>%
+  filter(emotion == "232") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition adult_232")
+
+adult_BL_outlier %>%
+  filter(emotion == "434") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition adult_434")
+
+adult_BL_outlier %>%
+  filter(emotion == "535") %>%
+  ggplot(aes(x = trial, y = rms, colour = outlier)) +
+  geom_quasirandom() +
+  facet_wrap(~ muscle) +
+  labs(title = "condition adult_535")
+```
+

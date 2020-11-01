@@ -1,0 +1,43 @@
+---
+title: "clean_emg_child"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(dplyr)
+library(janitor)
+library(readxl)
+library(naniar)
+```
+
+# call the functions 
+```{r}
+source(here("scripts", "key_cleaning_scripts", "riley_cleaning_functions.R"))
+```
+
+#define a file path
+
+```{r}
+file_path <- here("rileyraw_data", "childfaces")
+```
+
+#get a list of files in that file path 
+
+```{r}
+file_list <- list.files(path = file_path, pattern='*.xlsx') 
+```
+
+#use map to read excel for all of the files and add a file_name variable to each one
+```{r}
+rawemg_list <- file_list %>% 
+  map(~ read_excel(path = here("rileyraw_data", "childfaces", .x), range = "A2:AE13")  %>%
+        mutate("file_name" = .x))
+```
+
+#use map to cleanwrite_emg on all items in the rawemg_list
+```{r}
+cleanemg_list <- rawemg_list %>%
+  map(~ cleanwrite_emg(.x))
+```

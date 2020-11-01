@@ -1,0 +1,88 @@
+---
+title: "next steps clean data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load packages
+```{r}
+library(tidyverse)
+library(here)
+library(naniar)
+library(ggbeeswarm)
+library(ggeasy)
+
+```
+
+# Read in clean data
+
+Questions for Sahar - why are there 8 variables for faces and 6 for non?
+
+```{r}
+
+faces <- read_csv(here("data", "clean_data", "faces_clean.csv"))
+
+non <- read_csv(here("data", "clean_data", "non-faces_clean.csv"))
+
+```
+
+# use naniar to look at missing data
+
+
+```{r}
+naniar::vis_miss(faces)
+
+naniar::vis_miss(non)
+
+```
+
+# create participant and condition columns out of filename
+
+NOTE working with nonface here because it isn't missing data--- you will need to replicate with both face and non face
+
+Use separate() to split the filename into pp_no and condition and mutate with str_sub to drop the last 6 characters off the end of the values in the condition column to get rid of the .xlsx
+
+```{r}
+
+non_cond <- non %>%
+  separate(file_name, into = c("pp_no", "condition"), sep = "_") %>% 
+  mutate(condition = str_sub(condition, end = -6)) 
+```
+
+
+# Q1 are there baseline differences between brow and cheek?
+
+1. Filter the data to only include bin 0 (baseline- BL) and plot BL scores for each trial, separately for brow and cheek, coloured by positive/negative. 
+
+```{r}
+non_BL <- non_cond %>%
+  filter(bin == "bin_0")
+```
+
+Plot baseline 
+
+```{r}
+non_BL %>%
+  ggplot(aes(x = trial , y = rms, colour = condition)) +
+  geom_quasirandom() + 
+  facet_wrap(~ muscle)
+```
+
+```{r}
+non_BL %>%
+  group_by(muscle, trial)  %>%
+  summarise(meanRMS = mean(rms), sdRMS = sd(rms))
+```
+
+Next challenge to work out- identify trials that need to be excluded because the baseline score is more than 2SD above the mean for that participant?? 
+
+work out for each participant for every one of these baseline scores is it more than 2SD above 
+
+what is the mean baseline score across trials for the brow and cheek for each kid for each condition - are there any values within the scores that are contributing to the mean above the mean for that kid for that condition for that muscle 
+
+group by participant, condition and muscle 
+mutate - outlier - FALSE and TRUE according to condition 
+make a tiny data frame to solve it 

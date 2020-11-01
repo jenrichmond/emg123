@@ -1,0 +1,161 @@
+---
+title: "7_analysing"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#load packages
+
+```{r}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+```
+#read in data
+
+```{r}
+df <- read_csv(here("rileyraw_data", "adult_child_combined", "zdiff_binscreened.csv"))
+```
+
+#fix data types, all chars to factors
+```{r}
+glimpse(df)
+
+df <- df %>% mutate_if(is.character,as.factor)
+
+```
+
+#make dataframe with just happy/angry for cheek for adult faces 
+```{r}
+
+adult_cheek <- df %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, model, emotion_code, trial, bin)
+
+glimpse(adult_cheek)
+
+
+```
+
+#evidence of mimicry to happy would be evidenced by greater cheek activity over time (bin) for happy than angry
+##LMM - looking to predict zdiff from emotion (happy, angry), and bin (1-10) and their interaction, allowing intercepts to vary for participant and trial 
+```{r}
+adultlm_model_cheek <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = adult_cheek, REML = FALSE)
+```
+
+#use ANOVA to estimate effects 
+```{r}
+anova(adultlm_model_cheek)
+
+```
+#use summary to get coefficients 
+```{r}
+summary(adultlm_model_cheek)
+
+```
+#test cheek model assumptions
+##plot residuals 
+```{r}
+plot(adultlm_model_cheek)
+
+```
+#ggplot 
+```{r}
+qqnorm(resid(adultlm_model_cheek))
+qqline(resid(adultlm_model_cheek))
+```
+
+#do the same with child face data
+```{r}
+child_cheek <- df %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+
+glimpse(child_cheek)
+```
+
+```{r}
+childlm_model_cheek <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = child_cheek, REML = FALSE)
+```
+
+```{r}
+anova(childlm_model_cheek)
+```
+
+```{r}
+summary(childlm_model_cheek)
+```
+
+```{r}
+plot(childlm_model_cheek)
+```
+
+```{r}
+qqnorm(resid(childlm_model_cheek))
+qqline(resid(childlm_model_cheek))
+```
+
+#Brow
+##make dataframe with just happy/angry BROW
+```{r}
+adult_brow <- df %>%
+  filter(muscle == "brow") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+
+glimpse(adultHA_brow)
+```
+```{r}
+adultlm_model_brow <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = adult_brow, REML = FALSE)
+```
+
+```{r}
+anova(adultlm_model_brow)
+```
+
+```{r}
+summary(adultlm_model_brow)
+```
+```{r}
+plot(adultlm_model_brow)
+```
+```{r}
+qqnorm(resid(adultlm_model_brow))
+qqline(resid(adultlm_model_brow))
+```
+
+#do the same with child faces 
+```{r}
+child_brow <- df %>%
+  filter(muscle == "brow") %>%
+  filter(model == "child") %>%
+  arrange(pp_no, model, emotion, trial, bin)
+```
+
+```{r}
+childlm_model_brow <- lmer(zdiff ~ emotion + bin + emotion*bin + (1|pp_no) + (1|trial), data = child_brow, REML = FALSE)
+```
+
+```{r}
+anova(childlm_model_brow)
+```
+```{r}
+summary(childlm_model_brow)
+```
+
+```{r}
+plot(childlm_model_brow)
+```
+
+```{r}
+qqnorm(resid(childlm_model_brow))
+qqline(resid(childlm_model_brow))
+```
+

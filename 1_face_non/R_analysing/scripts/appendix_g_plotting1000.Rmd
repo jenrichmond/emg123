@@ -1,0 +1,288 @@
+---
+title: "10_plotting"
+author: "Sahar Fatima"
+date: "07/07/2020"
+output: word_document
+mainfont: Times New Roman
+fontsize: 12pt 
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+following: https://rpubs.com/jenrichmond/emg6 
+
+## load packages 
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(janitor)
+library(papaja)
+```
+
+## read in screened bin data for faces and non_face
+
+```{r message=FALSE, warning=FALSE}
+face_screened <- read_csv(here("R_analysing", "data", "9_face_zdiff_screened.csv"))
+
+non_screened <- read_csv(here("R_analysing", "data", "9_non_zdiff_screened.csv"))
+```
+
+## fix bin values 
+
+```{r}
+face_screened$bin <- str_sub(face_screened$bin, -4) 
+
+non_screened$bin <- str_sub(non_screened$bin, -4)
+```
+
+## recode emotion conditions
+```{r}
+face_screened <- face_screened %>%
+  mutate(condition = recode(condition, "429" = "Angry","673" = "Happy", .default = "NA"))
+
+non_screened <- non_screened %>%
+  mutate(condition = recode(condition, "913" = "Negative","285" = "Positive", .default = "NA"))
+
+```
+
+## fix variable types 
+```{r}
+face_screened$condition <- as.factor(face_screened$condition)
+face_screened$trial <- as.factor(face_screened$trial)
+face_screened$bin <- as.factor(face_screened$bin)
+
+non_screened$condition <- as.factor(non_screened$condition)
+non_screened$trial <- as.factor(non_screened$trial)
+non_screened$bin <- as.factor(non_screened$bin)
+
+
+```
+
+## PLOT FACE
+
+### Average muscle activity during 1000ms (averaging across bin)
+
+```{r}
+
+face_screened$muscle <- factor(face_screened$muscle, levels = c("cheek", "brow"))
+
+bar_face <- face_screened %>%
+  group_by(condition, muscle) %>%
+   summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = muscle, y = meanZ, group = condition, fill = condition)) + 
+  geom_bar(stat = "identity", 
+           width = 0.9, 
+           position = "dodge") + 
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr),
+                  size=.4,    # Thinner lines
+                    width=.2,
+                      position=position_dodge(.9)) + 
+  geom_hline(yintercept = 0) +
+  theme_apa(box = TRUE) + 
+  theme(legend.title = element_text(hjust = 0.5)) +
+  theme(legend.position = c(0.12, 0.82), 
+        legend.background = element_rect(colour = 'black', 
+                                           linetype='solid'), 
+        legend.title = element_blank()) + 
+  scale_x_discrete(labels = c("brow" = "Brow", "cheek" = "Cheek")) +
+  scale_y_continuous(limits = c(-0.15, 0.10), expand = c(0,0)) + 
+  scale_fill_grey(end = 0.7, start = 0.4) +
+  xlab("Face Muscle") + 
+  ylab("Mean z-score difference (RMS) from baseline \n (averaged across bin)") 
+  
+bar_face
+
+ggsave("face_stimulus_plot.png", path = here("R_analysing", "plots")) 
+
+```
+
+### CHEEK - Changes in Facial muscle activity over time
+```{r}
+
+face_cheek_plot <- face_screened %>%
+  filter(muscle == "cheek") %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr), 
+                size=.5,    # Thinner lines
+                    width=.2) + 
+  theme_apa(box = TRUE) +
+  theme(legend.position = c(0.15, 0.8), 
+        legend.background = element_rect(colour = 'black', 
+                                           linetype='solid'),
+        legend.key.height = unit(0.5, "cm"), 
+        legend.title = element_blank()) + 
+  ylab("Mean differences in cheek activity \n (baseline-corrected z-score)") + 
+  xlab("Time after stimulus presentation (ms)") +
+  scale_x_discrete(labels = c("bin1" = "100","bin2" = "200", "bin3" = "300","bin4" = "400", "bin5" = "500", "bin6" = "600", "bin7" = "700", "bin8" = "800", "bin9" = "900", "in10" = "1000")) +
+  scale_y_continuous(limits = c(-0.2, 0.3)) + 
+  scale_color_grey(end = 0.7)
+
+print(face_cheek_plot)
+
+ggsave("face_cheek_plot.png", path = here("R_analysing", "plots")) 
+```
+
+
+### BROW - responding over time
+```{r}
+
+face_brow_plot <- face_screened %>%
+  filter(muscle == "brow") %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr), 
+                size=.5,    # Thinner lines
+                    width=.2) + 
+  theme_apa(box = TRUE) +
+  theme(legend.position = c(0.15, 0.8), 
+        legend.background = element_rect(colour = 'black', 
+                                           linetype='solid'),
+        legend.key.height = unit(0.5, "cm"), 
+        legend.title = element_blank()) + 
+  ylab("Mean differences in brow activity \n (baseline-corrected z-score)") + 
+  xlab("Time after stimulus presentation (ms)") +
+  scale_x_discrete(labels = c("bin1" = "100","bin2" = "200", "bin3" = "300","bin4" = "400", "bin5" = "500", "bin6" = "600", "bin7" = "700", "bin8" = "800", "bin9" = "900", "in10" = "1000")) +
+  scale_y_continuous(limits = c(-0.3, 0.25)) + 
+  scale_color_grey(end = 0.7)
+
+print(face_brow_plot)
+
+ggsave("face_brow_plot.png", path = here("R_analysing", "plots")) 
+
+```
+
+## NON-FACE
+
+### Activity avg.d across bin - Cheek and Brow 
+
+```{r}
+non_screened$muscle <- factor(non_screened$muscle, levels = c("cheek", "brow"))
+
+bar_non <- non_screened %>%
+  group_by(condition, muscle) %>%
+   summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = muscle, y = meanZ, group = condition, fill = condition)) + 
+  geom_bar(stat = "identity", 
+           width = 0.9, 
+           position = "dodge") + 
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr),
+                  size=.4,    # Thinner lines
+                    width=.2,
+                      position=position_dodge(.9)) + 
+  geom_hline(yintercept = 0) +
+  theme_apa(box = TRUE) + 
+  theme(legend.position = c(0.83, 0.20), 
+        legend.background = element_rect(colour = 'black', 
+                                           linetype='solid'), 
+        legend.title = element_blank()) + 
+  scale_x_discrete(labels = c("brow" = "Brow", "cheek" = "Cheek")) +
+  scale_y_continuous(limits = c(-0.15, 0.1), expand = c(0,0)) + 
+  scale_fill_grey(end = 0.7, start = 0.4) +
+  xlab("Face Muscle") + 
+  ylab("Mean z-score difference (RMS) from baseline \n (averaged across bin)") 
+  
+
+bar_non
+
+ggsave("non_stimulus_plot.png", path = here("R_analysing", "plots")) 
+
+```
+
+### CHEEK - responding over time
+```{r}
+
+non_cheek_plot <- non_screened %>%
+  filter(muscle == "cheek") %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr), 
+                size=.5,    # Thinner lines
+                    width=.2) + 
+  theme_apa(box = TRUE) +
+  theme(legend.position = c(0.15, 0.8), 
+        legend.background = element_rect(colour = 'black', 
+                                           linetype='solid'),
+        legend.key.height = unit(0.5, "cm"), 
+        legend.title = element_blank()) + 
+  ylab("Mean differences in cheek activity \n (baseline-corrected z-score)") + 
+  xlab("Time after stimulus presentation (ms)") +
+  scale_x_discrete(labels = c("bin1" = "100","bin2" = "200", "bin3" = "300","bin4" = "400", "bin5" = "500", "bin6" = "600", "bin7" = "700", "bin8" = "800", "bin9" = "900", "in10" = "1000")) +
+  scale_y_continuous(limits = c(-0.2, 0.2)) + 
+  scale_color_grey(end = 0.7)
+
+print(non_cheek_plot)
+
+ggsave("non_cheek_plot.png", path = here("R_analysing", "plots")) 
+
+```
+
+
+## BROW - activity across time
+```{r}
+
+non_brow_plot <- non_screened %>%
+  filter(muscle == "brow") %>%
+  group_by(condition, bin, muscle) %>%
+  summarise(meanZ = mean(Zdiff, na.rm = TRUE), 
+            sd_RMS = sd(Zdiff, na.rm = TRUE), 
+            n = n(), 
+            stderr = sd_RMS/sqrt(n)) %>%
+  ggplot(aes(x = bin, y = meanZ, group = condition, colour = condition)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 0) +
+  geom_errorbar(aes(ymin = meanZ - stderr, ymax = meanZ + stderr), 
+                size=.5,    # Thinner lines
+                    width=.2) + 
+  theme_apa(box = TRUE) +
+  theme(legend.position = c(0.15, 0.15), 
+        legend.background = element_rect(colour = 'black', 
+                                           linetype='solid'),
+        legend.key.height = unit(0.5, "cm"), 
+        legend.title = element_blank()) + 
+  ylab("Mean differences in brow activity \n (baseline-corrected z-score)") + 
+  xlab("Time after stimulus presentation (ms)") +
+  scale_x_discrete(labels = c("bin1" = "100","bin2" = "200", "bin3" = "300","bin4" = "400", "bin5" = "500", "bin6" = "600", "bin7" = "700", "bin8" = "800", "bin9" = "900", "in10" = "1000")) +
+  scale_y_continuous(limits = c(-0.2, 0.2)) + 
+  scale_color_grey(end = 0.7)
+
+print(non_brow_plot)
+
+ggsave("non_brow_plot.png", path = here("R_analysing", "plots")) 
+
+```
+
+
+
+

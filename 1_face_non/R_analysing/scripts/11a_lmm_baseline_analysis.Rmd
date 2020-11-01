@@ -1,0 +1,234 @@
+---
+title: "11.1. lmm_baseline_analysis"
+author: "Sahar Fatima"
+date: "24/08/2020"
+output: word_document
+mainfont: Times New Roman
+fontsize: 12pt 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Objective
+I want to ensure that there are no differences in baseline cheek/brow responding to face/non-face stimuli to allow valid comparison of muscle responding between happy and angry faces or positively- and negatovely-valenced stimuli. 
+
+## Load packages 
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+library(ggplot2)
+library(lsmeans)
+library(emmeans)
+library(papaja)
+```
+
+## Read in data 
+Will read in raw data before z-score transformation and after removing baseline outliers. Will also replace condition codes for readability purposes and add new column with stimulus_type = face/non_face
+
+Note: 429 = angry faces; 673 = happy faces; 913 = negatively-valenced images; 285 = positively-valenced images
+
+```{r message=FALSE, warning=FALSE}
+
+# face data
+face_raw <- read_csv(here("R_analysing", "data", "7_face_false.csv")) %>%
+  mutate(condition = recode(condition, "429" = "angry","673" = "happy", .default = "NA"))
+
+# non-face data
+non_raw <- read_csv(here("R_analysing", "data", "7_non_false.csv")) %>%
+  mutate(condition = recode(condition, "913" = "negative","285" = "positive", .default = "NA")) 
+  
+```
+
+## Filter to keep baseline only
+I am only interested in baseline data so will use filter to keep rows where bin_no = 0 (i.e., baseline) for both face and non-face data frames. 
+
+Note: BL = baseline
+
+```{r}
+face_BL <- face_raw %>%
+  filter(bin_no == 0)
+
+non_BL <- non_raw %>%
+  filter(bin_no == 0)
+```
+
+## Combine baseline face and baseline non-face data frames
+I want to make sure that there are no significant differences between baseline rms cheek and brow scores for face and non-face data. So going to combine face and non-face data frames using bind_rows. Will also arrange by pp_no, stimulus_type, condition, trial and muscle. 
+
+```{r}
+face_non_BL <- bind_rows(face_BL, non_BL) %>%
+  arrange(pp_no, condition, trial, muscle)
+
+```
+
+## calculate means and standard deviations
+Calculate means across stimulus_type, condition and muscle
+
+Adding standard error to summary df. 
+```{r}
+face_non_BL_summary <- face_non_BL %>%
+  group_by(muscle, condition) %>%
+  summarise(mean_rms = mean(rms), 
+            sd_rms = sd(rms), 
+            n = n(), 
+            stderr = sd_rms/sqrt(n)) %>%
+  arrange(muscle)
+
+face_non_BL_summary$muscle <- fct_relevel(face_non_BL_summary$muscle, c("cheek", "brow")) %>%
+  recode("cheek" = "Cheek", "brow" = "Brow")
+
+```
+
+## Graph baseline means 
+
+```{r}
+face_non_BL_plot <- face_non_BL_summary %>%
+  ggplot(aes(x = condition, y = mean_rms)) +
+  geom_bar(aes(fill = condition), 
+           stat = "identity", 
+           show.legend = FALSE, 
+           width = 0.9, 
+           position = "dodge") + 
+  geom_errorbar(aes(ymin=mean_rms-stderr, ymax=mean_rms+stderr),
+                  size=.4,    # Thinner lines
+                    width=.2,
+                      position=position_dodge(.9)) +
+  facet_wrap(vars(muscle), labeller = labeller(muscle = c("brow" = "Brow", "cheek" = "Cheek"))) + 
+  theme_apa(base_family = "Arial", box = TRUE) + 
+  scale_fill_grey() + 
+  facet_wrap(~ muscle) + 
+  theme_apa(box = TRUE) + 
+  scale_y_continuous(limits = c(0, 12), expand = c(0,0)) + 
+  scale_x_discrete(labels = c("angry" = "Angry", "happy" = "Happy", "negative" = "Negative", "positive" = "Positive")) +
+  ylab("Mean baseline EMG responding (RMS)") + 
+  xlab("Stimulus Type")
+  
+
+print(face_non_BL_plot)
+
+ggsave("baseline_lmm.png", path = here("R_analysing", "plots")) 
+```
+
+## Moving onto LMM
+
+Although there are differences in brow and cheek responding between happy and angry faces, and positively- and negatively-valenced stimuli - differences don't seem to be significant. However, to be sure going to make LMMs
+
+LMM model structure: This model predicts baseline rms from fixed effects of condition (happy and angry faces, positive and negative images) and muscle (cheek and brow), and their interaction (condition:muscle). 
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) 
+
+```{r}
+glimpse(face_non_BL)
+
+# fix data types
+
+face_non_BL <- face_non_BL %>% mutate_if(is.character, as.factor)
+
+# separate cheek and brow df
+
+cheekBL <- face_non_BL %>%
+  filter(muscle == "cheek") 
+
+browBL <- face_non_BL %>%
+  filter(muscle == "brow")
+```
+
+## CHEEK 
+
+This model predicts baseline cheek RMS from condition (angry, happy, pos, neg) with intercepts for participants
+```{r}
+
+options(scipen = 999) # no scientific notation
+
+# cheek_bl_lmm <- lmer(rms ~ condition + stimulus_type + condition*stimulus_type + (1|pp_no), data = cheekBL, REML = FALSE)
+
+cheek_bl_lmm <- lmer(rms ~ condition + (1|pp_no), data = cheekBL, REML = FALSE)
+
+
+anova(cheek_bl_lmm)
+summary(cheek_bl_lmm)
+
+
+tidy_cheek_bl_lmm <- tidy(cheek_bl_lmm) 
+
+```
+
+### Test contrasts
+There does seem to be a sig difference in activity across conditiions. Going to use contrasts to examine these differences. https://rcompanion.org/rcompanion/h_01.html
+
+```{r}
+# check levels of condition - to set up contrasts correctly
+levels(cheekBL$condition)
+```
+
+```{r}
+
+# load library(lsmeans) and library(emmeans)
+
+# obtain group mean estimates 
+baseline_cheek <- lsmeans(cheek_bl_lmm, ~ "condition")
+
+# set up contrasts
+cheek_contrast <- list(angryvs.happy = c(1, -1, 0, 0), negativevs.positive = c(0, 0, 1, -1), happyvs.neg = c(0, 1, -1, 0), posvs.happy = c(0, 1, 0, -1), posvs.angry = c(1, 0, 0, -1), facevs.nonface = c(1, 1, -1, -1))
+
+cheek_contrasts <- contrast(baseline_cheek, cheek_contrast, adjust = "scheffe")
+
+confint(cheek_contrasts, level = 0.95)
+
+
+```
+
+## THEN BROW
+
+
+This model predicts baseline brow RMS from condition (angry, happy, pos, neg) with intercepts for participants
+```{r}
+
+options(scipen = 999) # no scientific notation
+
+# brow_bl_lmm <- lmer(rms ~ condition + stimulus_type + condition*stimulus_type + (1|pp_no), data = browBL, REML = FALSE)
+
+brow_bl_lmm <- lmer(rms ~ condition + (1|pp_no), data = browBL, REML = FALSE)
+
+summary(brow_bl_lmm)
+
+tidy_brow_bl_lmm <- tidy(brow_bl_lmm) 
+```
+
+### Test contrasts
+#### Brow Activity 
+There doesn't seem to be a sig difference in activity across conditiions. Going to use contrasts to confirm this. https://rcompanion.org/rcompanion/h_01.html
+
+```{r}
+# check levels of condition - to set up contrasts correctly
+levels(browBL$condition)
+```
+
+```{r}
+
+# load library(lsmeans) and library(emmeans)
+
+# obtain group mean estimates 
+baseline_brow <- lsmeans(brow_bl_lmm, ~ "condition")
+
+# set up contrasts
+brow_contrast <- list(angryvs.happy = c(1, -1, 0, 0), negativevs.positive = c(0, 0, 1, -1), happyvs.neg = c(0, 1, -1, 0), posvs.happy = c(0, 1, 0, -1), posvs.angry = c(1, 0, 0, -1), facevs.nonface = c(1, 1, -1, -1))
+
+brow_contrasts <- contrast(baseline_brow, brow_contrast, adjust = "scheffe")
+
+confint(brow_contrasts, level = 0.95)
+
+```
+
+# Take home 
+For cheek activity, there are no differences in baseline between happy and angry,  but there are between negative and happy AND between postive and negative. 
+For brow activity, there are no condition differences in baseline activity.

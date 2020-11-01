@@ -1,0 +1,191 @@
+---
+title: "confidence_interval_test"
+output: html_document
+---
+
+# load packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+library(ggplot2) 
+library(knitr)
+
+knitr::opts_chunk$set(autodep = TRUE)
+```
+
+
+# read in data 
+```{r}
+df <- read_csv(here::here("data", "adult_child_combined", "zdiff_binscreened.csv"))
+```
+
+
+```{r}
+df$emotion <- as.factor(df$emotion)
+
+levels(df$emotion)
+
+df <- df %>%
+  mutate(emo = case_when(emotion == 121 ~ "happy", 
+                              emotion == 323 ~ "angry", 
+                              emotion == 424 ~ "fear", 
+                              emotion == 525 ~ "sad", 
+                              emotion == 131 ~ "happy", 
+                              emotion == 232 ~ "angry", 
+                              emotion == 434 ~ "fear", 
+                              emotion == 535 ~ "sad"))
+
+df <- df %>% mutate_if(is.character, as.factor)
+
+glimpse(df)
+```
+
+#just happy and angry for adult cheek
+```{r}
+adult_cheek <- df %>%
+  filter(emo %in% c("happy", "angry")) %>%
+  filter(emotion %in% c("131", "232")) %>%
+  filter(muscle == "cheek") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(adult_cheek)
+
+```
+
+### fix factor levels 
+
+```{r}
+adult_cheek$emo <- fct_relevel(adult_cheek$emo, c("happy", "angry"))
+
+adult_cheek$emotion <- fct_relevel(adult_cheek$emotion, c("131", "232"))
+
+levels(adult_cheek$emo)
+
+adult_cheek$bin <- fct_relevel(adult_cheek$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(adult_cheek$bin)
+```
+
+```{r}
+### compute log_modulus
+adult_cheek <- adult_cheek %>%
+  mutate(log_modulus = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+
+#compute model
+```{r}
+adult_cheek_lm_2 <- lmer(log_modulus ~ emo + bin + emo*bin + (1 + emo|pp_no) , data = adult_cheek, REML = FALSE)
+```
+
+
+```{r cache = TRUE}
+confint.merMod(adult_cheek_lm_2, level = 0.95)
+```
+
+#just happy and fear for adult brow
+```{r}
+adult_brow <- df %>%
+  filter(emo %in% c("happy", "fear")) %>%
+  filter(emotion %in% c("131", "434")) %>%
+  filter(muscle == "brow") %>%
+  filter(model == "adult") %>%
+  arrange(pp_no, emotion, emo, trial, bin)
+
+glimpse(adult_brow)
+
+```
+
+
+### fix factor levels 
+
+```{r}
+adult_brow$emo <- fct_relevel(adult_brow$emo, c("happy", "fear"))
+
+adult_brow$emotion <- fct_relevel(adult_brow$emotion, c("131", "434"))
+
+levels(adult_brow$emo)
+
+adult_brow$bin <- fct_relevel(adult_brow$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(adult_brow$bin)
+```
+
+
+```{r}
+### compute log_modulus
+adult_brow <- adult_brow %>%
+  mutate(log_modulus = sign(zdiff) * log(1+abs(zdiff)))
+```
+
+#compute model
+```{r}
+adult_brow_lm_2 <- lmer(log_modulus ~ emo + bin + emo*bin + (1 + emo|pp_no) , data = adult_brow, REML = FALSE)
+```
+
+
+```{r cache = TRUE}
+confint.merMod(adult_brow_lm_2, level = 0.95)
+```
+
+#adult and child cheek - happy/angry 
+
+```{r}
+cheek_data <- df %>%
+  filter(emo %in% c("happy", "angry")) %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, model, trial, bin)
+
+cheek_data <- cheek_data %>% mutate_if(is.character, as.factor) %>%
+  mutate(log_modulus = sign(zdiff) * log(1+abs(zdiff)))
+
+cheek_data$emo <- fct_relevel(cheek_data$emo, c("happy", "angry"))
+
+cheek_data$bin <- fct_relevel(cheek_data$bin, c("diff_bin1", "diff_bin2", "diff_bin3", "diff_bin4", "diff_bin5", "diff_bin6", "diff_bin7", "diff_bin8", "diff_bin9", "diff_bin10"))
+
+levels(cheek_data$bin)
+
+naniar::vis_miss(cheek_data)
+```
+
+
+```{r}
+cheek_lm_1 <- lmer(log_modulus ~ emo + bin + model + 
+                    emo*bin + bin*model +
+                    emo*bin*model +
+                    (1|pp_no) , 
+                  data = cheek_data, REML = FALSE)
+
+beepr::beep()
+```
+
+```{r cache = TRUE}
+confint.merMod(cheek_lm_1, level = 0.95)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

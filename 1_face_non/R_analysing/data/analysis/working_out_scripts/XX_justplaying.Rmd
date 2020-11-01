@@ -1,0 +1,351 @@
+---
+title: "XX_justplaying"
+author: "Sahar Fatima"
+date: "22/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load packages 
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(broom.mixed)
+library(pixiedust)
+library(beepr)
+```
+
+## read in data 
+
+```{r message=FALSE, warning=FALSE}
+face <- read_csv(here("R_analysing", "data", "9_face_zdiff_screened.csv")) %>%
+   mutate(stimulus_type = "face") %>%         # make new variable where stimulus type = face
+  rename(valence = condition) %>% # valence = condition so later on you can recode the angry to a neg. valence
+  mutate(valence = recode(valence, "429" = "negative","673" = "positive", .default = "NA"))
+  
+non <- read_csv(here("R_analysing", "data", "9_non_zdiff_screened.csv")) %>%
+  mutate(condition = recode(condition, "913" = "negative",
+                            "285" = "positive", .default = "NA")) %>%
+  mutate(stimulus_type = "non-face") %>%
+  rename(valence = condition) 
+
+# combine face and non
+
+face_non <- bind_rows(face, non) %>%
+  arrange(pp_no, stimulus_type, valence, trial, muscle, bin) %>%
+  select(1, stimulus_type, 2:6)
+```
+
+## fix data types 
+
+```{r}
+face_non$valence <- as.factor(face_non$valence)
+
+face_non <- face_non %>%
+  mutate_if(is.character,as.factor)
+```
+
+## FACE AND NON-FACE 
+### Cheek LMM Model 1 (slopes only)
+This model predicts Zdiff from fixed effects of valence (positive, negative), bin (1-10), stimulus_type (face and non-face) and their interactions (valence x bin; vance x stimulus_type; bin x stimulus_type; valence x stimulus_type; valence  x stimulus_type x bin). 
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). This model doesn’t include slopes (yet).
+
+
+```{r}
+# making df
+face_non_cheek <- face_non %>%
+  filter(muscle == "cheek") %>%
+  arrange(pp_no, stimulus_type, valence, trial, bin)
+
+# making a model
+lm_cheek <- lmer(Zdiff ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1|pp_no), data = face_non_cheek, REML = FALSE)
+```
+
+check if normality assumptions are met 
+
+``` {r}
+
+plot(lm_cheek)
+
+qqnorm(resid(lm_cheek))
+qqline(resid(lm_cheek)) # spoiler alert they aren't
+
+```
+
+
+#### transform to correct normality
+Usually we would log transform but the Zdiff includes negative values. Alternative = log modulus transform. This transformation log transforms the absolute value (without the -) and then puts the sign back on). Make a new column for log modulus.
+``` {r}
+face_non_cheek <- face_non_cheek %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run new model 
+
+lm_cheek_1 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1|pp_no), data = face_non_cheek, REML = FALSE)
+```
+
+#### test assumptions again 
+Residuals are more evenly distributed than before, qq plot is SO much better (at least the sample quantiles are on the same scale). It is not great but maybe the best we can do.
+
+```{r}
+plot(lm_cheek_1)
+
+qqnorm(resid(lm_cheek_1))
+qqline(resid(lm_cheek_1))
+
+```
+
+#### use anova to estimate effects
+
+``` {r}
+# use anova to estimate effects
+anova_cheek_1 <- anova(lm_cheek_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+# use summary to get coefficients
+summary(lm_cheek_1)
+
+```
+
+### Cheek Model 2 (slopes for valence)
+#### run model
+```{r}
+lm_cheek_2 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + valence|pp_no), data = face_non_cheek, REML = FALSE)
+```
+
+#### get anova/summary
+```{r}
+anova_cheek_2 <- anova(lm_cheek_2)  %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_cheek_2)
+```
+
+#### check fit
+AIC
+```{r}
+AIC(lm_cheek_1)
+AIC(lm_cheek_2)
+```
+
+#### likelihood ratio test 
+Use anova to test if there is difference in fit.
+
+```{r}
+anova(lm_cheek_1, lm_cheek_2)
+```
+
+#### model 2 take home
+Model with random slopes for effect of emotion provides better fit than model with intercepts for participants only.
+
+```{r}
+beep(2)
+```
+
+### Cheek Model 3 (slopes for stimulus_type)
+#### run model
+```{r}
+lm_cheek_3 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + stimulus_type|pp_no), data = face_non_cheek, REML = FALSE)
+```
+
+#### check fit 
+```{r}
+AIC(lm_cheek_3)
+AIC(lm_cheek_2)
+```
+
+#### LRT
+```{r}
+anova(lm_cheek_2, lm_cheek_3)
+```
+
+#### anova/summary
+```{r}
+anova_cheek_3 <- anova(lm_cheek_3) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+```
+
+#### model 3 take home
+Model with random slopes for effect of stimulus_type provides better fit than model with random slopes for the fixed effect of valence
+
+### Cheek Model 4 (random slopes for bin and stimulus type - did not converge)
+#### run model 
+
+
+```{r}
+# lm_cheek_4 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + bin + stimulus_type|pp_no), data = face_non_cheek, REML = FALSE)
+```
+
+#### check fit
+```{r}
+# AIC(lm_cheek_4)
+```
+
+#### model 4 take home
+Model 3 with random slopes for effect of stimulus_type provides better fit than model with random slopes for the fixed effects of bin and stimulus_type
+
+### Cheek Model 5 (random slopes for bin + valence - did not converge)
+#### run model 
+
+```{r}
+# lm_cheek_5 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + bin + valence|pp_no), data = face_non_cheek, REML = FALSE)
+```
+
+
+### Cheek Model 6? (slopes for stimulus type and valence:stimulus type)
+not sure if this will work but it might? valence x stimulus_type interaction is sig. (anova_cheek_3 table)
+```{r}
+# lm_cheek_6 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + stimulus_type:valence|pp_no), data = face_non_cheek, REML = FALSE)
+```
+
+### CHEEK Models Take Home
+Cheek Model 3 provides the best fit of data - where valence, stimulus_type and bin and the interactions between them are fixed fixed effects and stimulus_type is a random slope with pp_no as the random intercept?
+
+
+### Brow LMM Model 1
+This model predicts Zdiff from fixed effects of valence (positive, negative), bin (1-10), stimulus_type (face and non-face) and their interactions (valence x bin; bin x stimulus_type; valence x stimulus_type; valence x stimulus_type x bin). 
+
+It includes random intercepts for participant (accounting for the potential of some kids to just have more active faces than others) and random intercepts for trials (accounting for the possibiity that face activation differs across the the 10 trials). This model doesn’t include slopes (yet).
+
+```{r}
+# making df
+face_non_brow <- face_non %>%
+  filter(muscle == "brow") %>%
+  arrange(pp_no, stimulus_type, valence, trial, bin)
+
+# making a model
+lm_brow <- lmer(Zdiff ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1|pp_no), data = face_non_brow, REML = FALSE)
+```
+
+check if normality assumptions are met 
+
+```{r}
+plot(lm_brow)
+
+qqnorm(resid(lm_brow))
+qqline(resid(lm_brow)) # spoiler alert they aren't
+
+```
+
+#### transform to correct normality
+``` {r}
+face_non_brow <- face_non_brow %>%
+  mutate(log_modulus = sign(Zdiff) * log(1+abs(Zdiff)))
+
+# run new model 
+lm_brow_1 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1|pp_no), data = face_non_brow, REML = FALSE)
+```
+
+##### test assumptions again 
+
+```{r}
+plot(lm_brow_1)
+
+qqnorm(resid(lm_brow_1))
+qqline(resid(lm_brow_1))
+
+```
+
+
+#### use anova to estimate effects
+
+```{r}
+# anova
+anova_brow_1 <- anova(lm_brow_1) %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_brow_1)
+
+```
+
+### Brow Model 2 (slopes for stimulus_type)
+#### run model
+model did not converge with random slope for valence
+```{r}
+lm_brow_2 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + stimulus_type|pp_no), data = face_non_brow, REML = FALSE)
+```
+
+#### get anova/summary
+```{r}
+anova_brow_2 <- anova(lm_brow_2)  %>%
+  rownames_to_column() %>%
+  rename(term = rowname)
+
+summary(lm_brow_2)
+```
+
+#### check fit
+AIC
+```{r}
+AIC(lm_brow_1)
+AIC(lm_brow_2)
+```
+
+#### likelihood ratio test 
+Use anova to test if there is difference in fit.
+
+```{r}
+anova(lm_brow_1, lm_brow_2)
+```
+
+#### model 2 take home
+Model with random slopes for effect of stimulus_type provides better fit than model with intercepts for participants only.
+
+```{r}
+beep(2)
+```
+
+### Brow model 3 (slopes for bin) - model failed to converge
+#### run model 
+
+```{r}
+# lm_brow_3 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + bin|pp_no), data = face_non_brow, REML = FALSE)
+```
+
+#### model 3 take home 
+Model 2 (random slopes for stimulus_type) better fit than model 3
+
+### Brow Model 4 (slopes for valence) - Model failed to converge
+```{r}
+# lm_brow_4 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + valence|pp_no), data = face_non_brow, REML = FALSE)
+```
+
+
+### Brow Model 5 (slopes for bin and stimulus_type) - Model failed to converge
+#### run model
+
+```{r}
+# lm_brow_5 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + bin + stimulus_type|pp_no), data = face_non_brow, REML = FALSE)
+```
+
+
+
+### Brow Model 6 (slopes for bin and valence)
+#### run model 
+```{r}
+# lm_brow_6 <- lmer(log_modulus ~ valence + bin + stimulus_type + valence:bin + valence:stimulus_type + bin:stimulus_type + valence:stimulus_type:bin + (1 + bin + valence|pp_no), data = face_non_brow, REML = FALSE)
+# OMG ok it ran?!
+```
+
+#### compare fit 
+```{r}
+# AIC(lm_brow_6)
+# AIC(lm_brow_2)
+```
+
+#### model 6 take home 
+model 6 ran - not expected considering models with only valence or only bin random slopes did not converge. Model 2 still a better fit. 
+
+

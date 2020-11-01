@@ -1,0 +1,13 @@
+---
+title: "Home"
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    toc: false
+editor_options:
+  chunk_output_type: console
+---
+
+THis website contains links to my analysis scripts. The links below will direct you to each of my RMarkdown documents:
+
+1. [Removing Baseline Outliers](6.-baseline_diff.html)
